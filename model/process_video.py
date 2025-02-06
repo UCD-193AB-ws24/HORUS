@@ -196,7 +196,7 @@ class VideoExtractor:
             fps = int(cap.get(cv2.CAP_PROP_FPS))
             width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            out = cv2.VideoWriter(visualize_output, fourcc, fps, (int(min(height, width)), int(min(height, width))))
+            out = cv2.VideoWriter(visualize_output, fourcc, fps, width, height)
         
         with FaceLandmarker.create_from_options(face_options) as face_landmarker, \
             mp_pose.Pose(min_detection_confidence=0.7, min_tracking_confidence=0.4, model_complexity=0) as pose_landmarker, \
@@ -208,7 +208,7 @@ class VideoExtractor:
                     break
 
     
-                frame = self.crop_to_square(frame)
+                #frame = self.crop_to_square(frame)
                 timestamp = int(cap.get(cv2.CAP_PROP_POS_MSEC))  # Video timestamp in milliseconds
                 
     
