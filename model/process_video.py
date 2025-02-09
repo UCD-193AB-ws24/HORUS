@@ -124,7 +124,7 @@ class VideoExtractor:
         height, width, _ = frame.shape
     
         # Find the size of the square (the smaller of the width or height)
-        square_size = int(min(height, width) * 0.8)
+        square_size = int(min(height, width))
     
         # Calculate the cropping coordinates to make the frame square
         start_x = (width - square_size) // 2
@@ -196,7 +196,7 @@ class VideoExtractor:
             fps = int(cap.get(cv2.CAP_PROP_FPS))
             width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            out = cv2.VideoWriter(visualize_output, fourcc, fps, (int(min(height, width) * 0.8), int(min(height, width) * 0.8)))
+            out = cv2.VideoWriter(visualize_output, fourcc, fps, width, height)
         
         with FaceLandmarker.create_from_options(face_options) as face_landmarker, \
             mp_pose.Pose(min_detection_confidence=0.7, min_tracking_confidence=0.4, model_complexity=0) as pose_landmarker, \
@@ -208,7 +208,7 @@ class VideoExtractor:
                     break
 
     
-                frame = self.crop_to_square(frame)
+                #frame = self.crop_to_square(frame)
                 timestamp = int(cap.get(cv2.CAP_PROP_POS_MSEC))  # Video timestamp in milliseconds
                 
     
