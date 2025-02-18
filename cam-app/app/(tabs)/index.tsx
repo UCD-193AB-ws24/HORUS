@@ -1,11 +1,17 @@
-import { Image, StyleSheet, Platform } from "react-native";
+import { Image, StyleSheet, Platform, Button } from "react-native";
 
+import {SpeechToText} from "@/components/SpeechToText";
+import {StaticTextToSpeech} from "@/components/StaticTextToSpeech";
 import { HelloWave } from "@/components/HelloWave";
 import ParallaxScrollView from "@/components/ParallaxScrollView";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
+import { useEffect, useState } from "react";
+
 
 export default function HomeScreen() {
+  const [input, setInput] = useState<string>("");
+
   return (
     <ParallaxScrollView
       headerBackgroundColor={{ light: "#A1CEDC", dark: "#1D3D47" }}
@@ -13,6 +19,7 @@ export default function HomeScreen() {
         <Image
           source={require("@/assets/images/partial-react-logo.png")}
           style={styles.reactLogo}
+          resizeMode="cover"
         />
       }
     >
@@ -26,6 +33,8 @@ export default function HomeScreen() {
           Welcome to our American Sign Langauge detection and translation app.
           To get started, head over to the camera tab and enable permissions!
         </ThemedText>
+        <StaticTextToSpeech input={input}/>
+        <SpeechToText/>
       </ThemedView>
     </ParallaxScrollView>
   );
@@ -47,5 +56,10 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     position: "absolute",
+  },
+  fullScreenImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
   },
 });

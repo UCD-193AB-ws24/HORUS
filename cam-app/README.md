@@ -18,3 +18,15 @@ npx expo start
 ```
 
 Scan QR code from runnig terminal with your phone with installed Expo go app to view the project. You can also press w to view on web.
+
+**Notes**
+
+Updates might not apply to your mobile expo go instance upon rescanning the QR code.
+
+run: 
+
+```bash
+npx expo start -c
+```
+
+To clear the cache
