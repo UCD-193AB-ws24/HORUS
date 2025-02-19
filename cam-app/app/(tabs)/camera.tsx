@@ -12,8 +12,16 @@ export default function CameraComponent() {
   const cameraRef = useRef<CameraView | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  if (!permission) return <View />;
+  useEffect(() => {
+    console.log('[DEBUG] Checking camera permissions...');
+  }, []);
+
+  if (!permission) {
+    console.log('[DEBUG] Camera permissions are still loading...');
+    return <View />;
+  }
   if (!permission.granted) {
+    console.log('[DEBUG] Camera permissions not granted');
     return (
       <View style={styles.container}>
         <Text style={{ textAlign: 'center' }}>We need your permission to show the camera</Text>
@@ -25,21 +33,30 @@ export default function CameraComponent() {
   }
 
   function toggleCameraFacing() {
+    console.log('[DEBUG] Toggling camera facing...');
     setFacing((current) => (current === 'back' ? 'front' : 'back'));
   }
 
   const startRealTimeDetection = () => {
+    console.log('[DEBUG] Starting real-time gesture detection...');
     setIsDetecting(true);
     intervalRef.current = setInterval(async () => {
       if (cameraRef.current) {
+        console.log('[DEBUG] Capturing frame...');
         const options = { quality: 0.5, base64: true, exif: false };
-        const photo = await cameraRef.current.takePictureAsync(options);
-        sendFrameToServer(photo);
+        try {
+          const photo = await cameraRef.current.takePictureAsync(options);
+          console.log(`[DEBUG] Frame captured. Size: ${photo?.width}x${photo?.height}`);
+          sendFrameToServer(photo);
+        } catch (error) {
+          console.error('[ERROR] Failed to capture frame:', error);
+        }
       }
     }, 500); // Adjust interval based on server response speed
   };
 
   const stopRealTimeDetection = () => {
+    console.log('[DEBUG] Stopping real-time gesture detection...');
     setIsDetecting(false);
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -49,20 +66,24 @@ export default function CameraComponent() {
 
   const sendFrameToServer = async (photo: any) => {
     try {
+      console.log('[DEBUG] Preparing frame for upload...');
       let formData = new FormData();
       const photoBlob = await (await fetch(photo.uri)).blob();
       formData.append('file', photoBlob, 'frame.jpg');
 
-      let response = await fetch('http://0.0.0.0:8000/recognize-gesture/', {
+      console.log('[DEBUG] Sending frame to server...');
+      let response = await fetch('http://127.0.0.1:8000/recognize-gesture/', {
         method: 'POST',
         body: formData,
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
+      console.log(`[DEBUG] Server response status: ${response.status}`);
       let data = await response.json();
+      console.log(`[DEBUG] Received gesture response: ${data.gesture}`);
       setGesture(data.gesture);
     } catch (error) {
-      console.error('Error sending frame:', error);
+      console.error('[ERROR] Error sending frame:', error);
     }
   };
 
