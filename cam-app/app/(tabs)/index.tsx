@@ -10,7 +10,6 @@ import { useEffect, useState } from "react";
 
 
 export default function HomeScreen() {
-  const [input, setInput] = useState<string>("");
 
   return (
     <ParallaxScrollView
@@ -33,8 +32,8 @@ export default function HomeScreen() {
           Welcome to our American Sign Langauge detection and translation app.
           To get started, head over to the camera tab and enable permissions!
         </ThemedText>
-        <StaticTextToSpeech input={input}/>
-        <SpeechToText/>
+        <StaticTextToSpeech/>
+        {/* <SpeechToText/> */}
       </ThemedView>
     </ParallaxScrollView>
   );

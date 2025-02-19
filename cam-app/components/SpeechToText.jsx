@@ -5,11 +5,17 @@ import Voice from "@react-native-voice/voice";
 export function SpeechToText() {
   const [isListening, setIsListening] = useState<boolean>(false);
   const [recognizedText, setRecognizedText] = useState<string>("");
+  const [sttError, setSttError] = useState<boolean>(false);
+  const [errorMsg, setErrorMsg] = useState<string>("");
 
   useEffect(() => {
     Voice.onSpeechStart = () => setIsListening(true);
     Voice.onSpeechEnd = () => setIsListening(false);
-    Voice.onSpeechError = (error) => console.error("Speech error:", error);
+    Voice.onSpeechError = (error) => {
+        console.error("Speech error:", error)
+        setErrorMsg(error.error.message);
+        setSttError(true);
+    };
     Voice.onSpeechResults = (result) => {
       if (result.value?.length) {
         setRecognizedText(result.value[0]);
@@ -39,10 +45,15 @@ export function SpeechToText() {
 
   return (
     <View>
-      <Text>{isListening ? "Listening..." : "Not listening"}</Text>
-      <Button title="Start Listening" onPress={startListening} />
-      <Button title="Stop Listening" onPress={stopListening} />
-      <Text>Recognized Text: {recognizedText}</Text>
+        {sttError ? (<Text>Speech recognition failed with error {errorMsg}</Text>) : (
+            <>
+                <Text>{isListening ? "Listening..." : "Not listening"}</Text>
+                <Button title="Start Listening" onPress={startListening} />
+                <Button title="Stop Listening" onPress={stopListening} />
+                <Text>Recognized Text: {recognizedText}
+                </Text>
+            </>
+        )}
     </View>
   );
 };
