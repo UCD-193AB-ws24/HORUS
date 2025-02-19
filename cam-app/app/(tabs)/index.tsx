@@ -32,7 +32,7 @@ export default function HomeScreen() {
           Welcome to our American Sign Langauge detection and translation app.
           To get started, head over to the camera tab and enable permissions!
         </ThemedText>
-        <StaticTextToSpeech/>
+        {/* <StaticTextToSpeech/> */}
         {/* <SpeechToText/> */}
       </ThemedView>
     </ParallaxScrollView>
