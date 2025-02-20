@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
 import { AntDesign } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system';
 
 export default function CameraComponent() {
   const [facing, setFacing] = useState<CameraType>('back');
@@ -66,24 +67,59 @@ export default function CameraComponent() {
 
   const sendFrameToServer = async (photo: any) => {
     try {
-      console.log('[DEBUG] Preparing frame for upload...');
-      let formData = new FormData();
-      const photoBlob = await (await fetch(photo.uri)).blob();
-      formData.append('file', photoBlob, 'frame.jpg');
+        console.log('[DEBUG] Preparing frame for upload...');
+        let formData = new FormData();
 
-      console.log('[DEBUG] Sending frame to server...');
-      let response = await fetch('http://127.0.0.1:8000/recognize-gesture/', {
-        method: 'POST',
-        body: formData,
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+        const response = await fetch(photo.uri);
+        const blob = await response.blob();
 
-      console.log(`[DEBUG] Server response status: ${response.status}`);
-      let data = await response.json();
-      console.log(`[DEBUG] Received gesture response: ${data.gesture}`);
-      setGesture(data.gesture);
+        formData.append('file', blob, 'frame.jpg');
+
+        console.log('[DEBUG] Sending frame to server...');
+
+        let responseFetch = await fetch('http://127.0.0.1:8000/recognize-gesture/', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                "Accept": "application/json",
+            },
+        });
+
+        console.log(`[DEBUG] Server response status: ${responseFetch.status}`);
+
+        if (!responseFetch.ok) {
+            const errorText = await responseFetch.text();
+            console.error('[ERROR] Server response:', errorText);
+            throw new Error(errorText);
+        }
+
+        let data = await responseFetch.json();
+        console.log(`[DEBUG] Received gesture response: ${data.gesture}`);
+        setGesture(data.gesture);
+
     } catch (error) {
-      console.error('[ERROR] Error sending frame:', error);
+        console.error('[ERROR] Error sending frame:', error);
+    }
+};
+
+
+  const savePhotoToLocalFolder = async (photoUri: string) => {
+    try {
+      const photoBlob = await (await fetch(photoUri)).blob();
+      const fileUri = `${FileSystem.documentDirectory}frame.jpg`;
+  
+      // Convert blob to base64
+      const reader = new FileReader();
+      reader.readAsDataURL(photoBlob);
+      reader.onloadend = async () => {
+        const base64data = reader.result as string;
+        await FileSystem.writeAsStringAsync(fileUri, base64data.split(',')[1], {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        console.log('Photo saved to:', fileUri);
+      };
+    } catch (error) {
+      console.error('Error saving photo:', error);
     }
   };
 
