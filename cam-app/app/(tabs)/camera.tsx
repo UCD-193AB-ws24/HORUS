@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
 import { AntDesign } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system';
+import * as Speech from 'expo-speech';
 
 export default function CameraComponent() {
   const [facing, setFacing] = useState<CameraType>('back');
@@ -95,6 +96,9 @@ export default function CameraComponent() {
 
         let data = await responseFetch.json();
         console.log(`[DEBUG] Received gesture response: ${data.gesture}`);
+        if (data.gesture != "None"){
+          Speech.speak(data.gesture);
+        }
         setGesture(data.gesture);
 
     } catch (error) {

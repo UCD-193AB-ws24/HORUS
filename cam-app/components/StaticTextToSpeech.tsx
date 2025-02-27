@@ -4,6 +4,7 @@ import { Button, TextInput } from 'react-native';
 
 export function StaticTextToSpeech() {
   const [input, setInput] = useState<string>("");
+  
   return (
     <>
       <TextInput

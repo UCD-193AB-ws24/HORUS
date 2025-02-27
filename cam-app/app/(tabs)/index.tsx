@@ -1,7 +1,7 @@
 import { Image, StyleSheet, Platform, Button } from "react-native";
 
 import {SpeechToText} from "@/components/SpeechToText";
-import {StaticTextToSpeech} from "@/components/StaticTextToSpeech";
+//import {StaticTextToSpeech} from "@/components/StaticTextToSpeech";
 import { HelloWave } from "@/components/HelloWave";
 import ParallaxScrollView from "@/components/ParallaxScrollView";
 import { ThemedText } from "@/components/ThemedText";
@@ -32,7 +32,6 @@ export default function HomeScreen() {
           Welcome to our American Sign Langauge detection and translation app.
           To get started, head over to the camera tab and enable permissions!
         </ThemedText>
-        {/* <StaticTextToSpeech/> */}
         {/* <SpeechToText/> */}
       </ThemedView>
     </ParallaxScrollView>
