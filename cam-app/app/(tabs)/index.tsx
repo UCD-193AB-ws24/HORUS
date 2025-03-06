@@ -1,6 +1,6 @@
 import { Image, StyleSheet, Platform, Button } from "react-native";
 
-import { SpeechToText } from "@/components/SpeechToText";
+//import { SpeechToText } from "@/components/SpeechToText";
 //import {StaticTextToSpeech} from "@/components/StaticTextToSpeech";
 import { HelloWave } from "@/components/HelloWave";
 import ParallaxScrollView from "@/components/ParallaxScrollView";
