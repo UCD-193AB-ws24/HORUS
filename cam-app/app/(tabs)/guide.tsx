@@ -1,4 +1,4 @@
-import { StyleSheet, Image, Platform } from "react-native";
+import { StyleSheet, Image } from "react-native";
 
 import ParallaxScrollView from "@/components/ParallaxScrollView";
 import { ThemedText } from "@/components/ThemedText";
@@ -20,7 +20,7 @@ export default function TabTwoScreen() {
         <ThemedText type="title">How to Sign</ThemedText>
       </ThemedView>
       <Image
-        source={require("@/assets/images/asl_alphabet.svg")}
+        source={require("@/assets/images/asl-alphabet.svg")}
         style={styles.aslAlphabet}
         resizeMode="contain"
       />
@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
     position: "static",
   },
   aslAlphabet: {
-    height: 300,
+    height: 500,
     width: "100%",
     marginTop: 20,
     backgroundColor: "transparent",
