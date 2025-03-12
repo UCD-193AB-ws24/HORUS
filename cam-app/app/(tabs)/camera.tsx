@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
+import { SpeechToText } from "@/components/SpeechToText";
 import { AntDesign } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system';
 import * as Speech from 'expo-speech';
@@ -151,6 +152,7 @@ export default function CameraComponent() {
           )}
         </View>
       </CameraView>
+      <SpeechToText/> 
     </View>
   );
 }

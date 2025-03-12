@@ -31,7 +31,6 @@ export default function HomeScreen() {
         <ThemedText>
           To get started, head over to the camera tab and enable permissions!
         </ThemedText>
-        {/* <SpeechToText/> */}
       </ThemedView>
     </ParallaxScrollView>
   );
