@@ -1,6 +1,6 @@
 import { Image, StyleSheet, Platform, Button } from "react-native";
 
-import { SpeechToText } from "@/components/SpeechToText";
+//import { SpeechToText } from "@/components/SpeechToText";
 //import {StaticTextToSpeech} from "@/components/StaticTextToSpeech";
 import { HelloWave } from "@/components/HelloWave";
 import ParallaxScrollView from "@/components/ParallaxScrollView";
@@ -25,10 +25,10 @@ export default function HomeScreen() {
         <HelloWave />
       </ThemedView>
       <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">
+        <ThemedText type="subtitle" style={styles.welcomeText}>
           Welcome to our ASL Detection & Translation App
         </ThemedText>
-        <ThemedText>
+        <ThemedText style={styles.instructionText}>
           To get started, head over to the camera tab and enable permissions!
         </ThemedText>
       </ThemedView>
@@ -43,8 +43,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+    gap: 16,
+    marginBottom: 16,
+    alignItems: "center",
+    paddingHorizontal: 20,
   },
   landingLogo: {
     height: 178,
@@ -52,6 +54,16 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     position: "static",
+  },
+  welcomeText: {
+    textAlign: "center",
+    fontSize: 24,
+    letterSpacing: 0.5,
+    marginVertical: 12,
+  },
+  instructionText: {
+    textAlign: "center",
+    opacity: 0.9,
   },
   fullScreenImage: {
     flex: 1,
