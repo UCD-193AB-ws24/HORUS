@@ -55,7 +55,7 @@ export default function CameraComponent() {
           console.error('[ERROR] Failed to capture frame:', error);
         }
       }
-    }, 200); // Adjust interval based on server response speed
+    }, 300); // Adjust interval based on server response speed
   };
 
   const stopRealTimeDetection = () => {

@@ -6,6 +6,10 @@ import cv2
 import numpy as np
 import mediapipe as mp
 import time
+import pyaudio
+import wave
+import requests
+import time
 import whisper
 
 app = FastAPI()
@@ -63,7 +67,7 @@ async def process_audio(audio: UploadFile = File(...)):
         temp_path = tmp.name
 
     try:
-        result = whisper_model.transcribe(temp_path, language='en')  # or omit language if auto-detect
+        result = whisper_model.transcribe(temp_path, language='en', fp16 = False)  # or omit language if auto-detect
         recognized_text = result.get("text", "")
     except Exception as e:
         # Cleanup and re-raise as HTTPException
@@ -87,12 +91,6 @@ async def process_audio(audio: UploadFile = File(...)):
 def read_root():
     return {"message": "Server is running!"}
 
-
-import pyaudio
-import wave
-import requests
-import time
-import os
 
 def record_audio_and_send(
     server_url="http://127.0.0.1:8000/process_audio/",
