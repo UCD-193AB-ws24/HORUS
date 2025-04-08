@@ -17,7 +17,7 @@ npm install
 npx expo start
 ```
 
-Scan QR code from runnig terminal with your phone with installed Expo go app to view the project. You can also press w to view on web.
+Scan QR code from running terminal with your phone with installed Expo go app to view the project. You can also press w to view on web.
 
 **Notes**
 
@@ -28,5 +28,3 @@ run:
 ```bash
 npx expo start --clear
 ```
-
-To clear the cache before starting
