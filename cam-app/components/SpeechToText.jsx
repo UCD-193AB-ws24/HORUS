@@ -17,7 +17,7 @@ export function SpeechToText() {
   const [sttError, setSttError] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  const [buttonTitle, setButtonTitle] = useState("Start Recording");
+  const [buttonTitle, setButtonTitle] = useState("Start Audio Recording");
 
   // --- Start Recording ---
   const startRecording = async () => {
@@ -126,7 +126,7 @@ export function SpeechToText() {
   };
 
   return (
-    <View style={{ padding: 16 }}>
+    <View style={{ padding: 20, backgroundColor: "black" }}>
 
       {!isRecording && (
         <Button title={buttonTitle} onPress={startRecording} />
@@ -134,14 +134,14 @@ export function SpeechToText() {
 
       {isRecording && (
         <>
-          <Button
+          <Button 
             title="Stop & Transcribe (Local)"
             onPress={stopRecordingLocal}
           />
         </>
       )}
 
-      <Text style={{ marginTop: 16, backgroundColor: "#ffffff", padding: 8 }}>
+      <Text style={{ marginTop: 5, color: "black", backgroundColor: "white", padding: 20, fontSize: 30 }}>
         Recognized Text: {recognizedText}
       </Text>
     </View>

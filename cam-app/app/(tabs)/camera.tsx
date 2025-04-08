@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
+import { CameraCapturedPicture, CameraType, CameraView, useCameraPermissions } from 'expo-camera';
 import { SpeechToText } from "@/components/SpeechToText";
 import { AntDesign } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system';
@@ -11,6 +11,7 @@ export default function CameraComponent() {
   const [permission, requestPermission] = useCameraPermissions();
   const [gesture, setGesture] = useState<string | null>(null);
   const [isDetecting, setIsDetecting] = useState(false);
+  const [photo, setPhoto] = useState<CameraCapturedPicture | undefined>(undefined);
 
   const cameraRef = useRef<CameraView | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -50,7 +51,8 @@ export default function CameraComponent() {
         try {
           const photo = await cameraRef.current.takePictureAsync(options);
           console.log(`[DEBUG] Frame captured. Size: ${photo?.width}x${photo?.height}`);
-          sendFrameToServer(photo);
+          setPhoto(photo);
+          //sendFrameToServer(photo);
         } catch (error) {
           console.error('[ERROR] Failed to capture frame:', error);
         }
@@ -61,6 +63,8 @@ export default function CameraComponent() {
   const stopRealTimeDetection = () => {
     console.log('[DEBUG] Stopping real-time gesture detection...');
     setIsDetecting(false);
+    sendFrameToServer(photo);
+    setPhoto(undefined)
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
