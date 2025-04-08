@@ -1,1 +1,20 @@
-Open Source ASL Detection and Translation App that bridges the communication gap between individuals who rely on ASL and those who primarily use the spoken language
+
+# Sign-Language-App
+
+**Progress**
+
+- OnChip TTS integrated
+- Basic splashscreen / nav set up
+- Static letters model created
+
+**TODO FOR ALPHA (IN ORDER OF PRIORITY)**
+
+- OnChip STT
+- Integrate current model
+- Train new model to detect numbers
+- Train new model to detect moving characters J and Z
+- Improve UI
+
+**REACH GOALS**
+
+- More advanced signs

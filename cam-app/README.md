@@ -26,7 +26,5 @@ Updates might not apply to your mobile expo go instance upon rescanning the QR c
 run: 
 
 ```bash
-npx expo start -c
+npx expo start --clear
 ```
-
-To clear the cache
