@@ -1,16 +1,17 @@
 import os
 import tempfile
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 import cv2
 import numpy as np
 import mediapipe as mp
 import time
-import pyaudio
+#import pyaudio
 import wave
 import requests
 import time
 import whisper
+from pydantic import BaseModel
 
 app = FastAPI()
 
@@ -32,6 +33,10 @@ options = GestureRecognizerOptions(
     base_options=BaseOptions(model_asset_path='./gesture_recognizer.task'),
     running_mode=VisionRunningMode.IMAGE,
 )
+
+class Item (BaseModel):
+    signed: str
+    translated: str
 
 recognizer = GestureRecognizer.create_from_options(options)
 
@@ -87,78 +92,84 @@ async def process_audio(audio: UploadFile = File(...)):
 #     contents = await file.read()
 #     return {"msg": "File received", "file_size": len(contents)}
 
+@app.post("/send_help_form/")
+async def send_help_form(item: Item):
+    print(item.signed, item.translated)
+    print(item)
+    return {"message": "File received"}
+
 @app.get("/")
 def read_root():
     return {"message": "Server is running!"}
 
 
-def record_audio_and_send(
-    server_url="http://127.0.0.1:8000/process_audio/",
-    duration=5,
-    output_filename="output.wav"
-):
-    """
-    Records audio from your microphone for `duration` seconds,
-    saves to `output_filename`, and sends it to the `server_url`
-    endpoint for STT.
-    """
+# def record_audio_and_send(
+#     server_url="http://127.0.0.1:8000/process_audio/",
+#     duration=5,
+#     output_filename="output.wav"
+# ):
+#     """
+#     Records audio from your microphone for `duration` seconds,
+#     saves to `output_filename`, and sends it to the `server_url`
+#     endpoint for STT.
+#     """
 
-    # Audio recording parameters
-    chunk = 1024          # Number of frames per buffer
-    format = pyaudio.paInt16
-    channels = 1
-    rate = 16000          # Whisper often expects 16k, but you can do 44100
-    record_seconds = duration
+#     # Audio recording parameters
+#     chunk = 1024          # Number of frames per buffer
+#     format = pyaudio.paInt16
+#     channels = 1
+#     rate = 16000          # Whisper often expects 16k, but you can do 44100
+#     record_seconds = duration
 
-    # Initialize PyAudio
-    p = pyaudio.PyAudio()
+#     # Initialize PyAudio
+#     p = pyaudio.PyAudio()
 
-    # Open stream
-    stream = p.open(format=format,
-                    channels=channels,
-                    rate=rate,
-                    input=True,
-                    frames_per_buffer=chunk)
+#     # Open stream
+#     stream = p.open(format=format,
+#                     channels=channels,
+#                     rate=rate,
+#                     input=True,
+#                     frames_per_buffer=chunk)
 
-    print(f"Recording for {record_seconds} second(s)...")
-    frames = []
+#     print(f"Recording for {record_seconds} second(s)...")
+#     frames = []
 
-    # Read mic data
-    for _ in range(0, int(rate / chunk * record_seconds)):
-        data = stream.read(chunk)
-        frames.append(data)
+#     # Read mic data
+#     for _ in range(0, int(rate / chunk * record_seconds)):
+#         data = stream.read(chunk)
+#         frames.append(data)
 
-    # Stop and close
-    stream.stop_stream()
-    stream.close()
-    p.terminate()
+#     # Stop and close
+#     stream.stop_stream()
+#     stream.close()
+#     p.terminate()
 
-    print("Recording complete. Saving WAV file...")
+#     print("Recording complete. Saving WAV file...")
 
-    # Save as WAV
-    wf = wave.open(output_filename, 'wb')
-    wf.setnchannels(channels)
-    wf.setsampwidth(p.get_sample_size(format))
-    wf.setframerate(rate)
-    wf.writeframes(b''.join(frames))
-    wf.close()
+#     # Save as WAV
+#     wf = wave.open(output_filename, 'wb')
+#     wf.setnchannels(channels)
+#     wf.setsampwidth(p.get_sample_size(format))
+#     wf.setframerate(rate)
+#     wf.writeframes(b''.join(frames))
+#     wf.close()
 
-    # Send the file to the server
-    try:
-        with open(output_filename, "rb") as f:
-            files = {"file": ("recording.wav", f, "audio/wav")}
-            print(f"Sending to {server_url} ...")
-            response = requests.post(server_url, files=files)
-        if response.status_code == 200:
-            data = response.json()
-            print("Server response:", data)
-        else:
-            print(f"Error from server: HTTP {response.status_code}")
-            print("Response:", response.text)
-    finally:
-        # Clean up local WAV file if you want
-        if os.path.exists(output_filename):
-            os.remove(output_filename)
+#     # Send the file to the server
+#     try:
+#         with open(output_filename, "rb") as f:
+#             files = {"file": ("recording.wav", f, "audio/wav")}
+#             print(f"Sending to {server_url} ...")
+#             response = requests.post(server_url, files=files)
+#         if response.status_code == 200:
+#             data = response.json()
+#             print("Server response:", data)
+#         else:
+#             print(f"Error from server: HTTP {response.status_code}")
+#             print("Response:", response.text)
+#     finally:
+#         # Clean up local WAV file if you want
+#         if os.path.exists(output_filename):
+#             os.remove(output_filename)
 
 
 if __name__ == "__main__":
