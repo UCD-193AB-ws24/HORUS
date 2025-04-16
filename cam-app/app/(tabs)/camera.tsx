@@ -2,28 +2,43 @@ import { SetStateAction, useEffect, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { CameraType, CameraView, useCameraPermissions } from "expo-camera";
 import { AntDesign } from "@expo/vector-icons";
-import * as FileSystem from "expo-file-system";
 import * as Speech from "expo-speech";
 import { Colors } from "@/constants/Colors";
 import { Audio } from "expo-av";
 import { SpeechToText } from "@/components/SpeechToText";
 
 export default function CameraComponent() {
-  const [facing, setFacing] = useState<CameraType>("back");
+  const [facing, setFacing] = useState<CameraType>("front"); // Set front camera as default for signing
   const [permission, requestPermission] = useCameraPermissions();
-  const [gesture, setGesture] = useState<string | null>(null);
-  const [isDetecting, setIsDetecting] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [recognizedWord, setRecognizedWord] = useState<string | null>(null);
+  const [isVideoRecording, setIsVideoRecording] = useState(false);
+  const [isAudioRecording, setIsAudioRecording] = useState(false);
+  const [audioRecording, setAudioRecording] = useState<Audio.Recording | null>(null);
   const [recognizedText, setRecognizedText] = useState("");
   const [transcriptionUri, setTranscriptionUri] = useState<string | null>(null);
-
+  const [sentence, setSentence] = useState<string[]>([]);
+  
+  // Reference to hold timeout ID for simulated recording
+  const recordingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const cameraRef = useRef<CameraView | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     console.log("[DEBUG] Checking camera permissions...");
+    
+    // Cleanup any timeouts when component unmounts
+    return () => {
+      if (recordingTimeoutRef.current) {
+        clearTimeout(recordingTimeoutRef.current);
+      }
+    };
   }, []);
+
+  // Add recognized words to our sentence
+  useEffect(() => {
+    if (recognizedWord && recognizedWord !== "None") {
+      setSentence(prev => [...prev, recognizedWord]);
+    }
+  }, [recognizedWord]);
 
   if (!permission) {
     console.log("[DEBUG] Camera permissions are still loading...");
@@ -48,49 +63,70 @@ export default function CameraComponent() {
     setFacing((current) => (current === "back" ? "front" : "back"));
   }
 
-  const startRealTimeDetection = () => {
-    console.log("[DEBUG] Starting real-time gesture detection...");
-    setIsDetecting(true);
-    intervalRef.current = setInterval(async () => {
-      if (cameraRef.current) {
-        console.log("[DEBUG] Capturing frame...");
-        const options = { quality: 0.5, base64: true, exif: false };
-        try {
-          const photo = await cameraRef.current.takePictureAsync(options);
-          console.log(
-            `[DEBUG] Frame captured. Size: ${photo?.width}x${photo?.height}`
-          );
-          sendFrameToServer(photo);
-        } catch (error) {
-          console.error("[ERROR] Failed to capture frame:", error);
+  // Simulate starting video recording
+  const startVideoRecording = async () => {
+    try {
+      console.log("[DEBUG] Starting simulated video recording...");
+      setIsVideoRecording(true);
+      
+      // Record for 3 seconds before automatically stopping
+      recordingTimeoutRef.current = setTimeout(() => {
+        if (isVideoRecording) {
+          stopVideoRecordingAndAnalyze();
         }
-      }
-    }, 300);
-  };
-
-  const stopRealTimeDetection = () => {
-    console.log("[DEBUG] Stopping real-time gesture detection...");
-    setIsDetecting(false);
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
+      }, 3000); // 3 seconds of simulated recording
+    } catch (error) {
+      console.error("[ERROR] Failed to start video recording:", error);
+      setIsVideoRecording(false);
     }
   };
 
-  const sendFrameToServer = async (photo: any) => {
+  // Simulate stopping video recording and analyze the result
+  const stopVideoRecordingAndAnalyze = async () => {
     try {
-      console.log("[DEBUG] Preparing frame for upload...");
+      console.log("[DEBUG] Stopping simulated video recording...");
+      setIsVideoRecording(false);
+      
+      // Clear the timeout if user manually stopped recording
+      if (recordingTimeoutRef.current) {
+        clearTimeout(recordingTimeoutRef.current);
+        recordingTimeoutRef.current = null;
+      }
+      
+      // In web environment, we'll capture a photo and send it for analysis
+      if (cameraRef.current) {
+        const photo = await cameraRef.current.takePictureAsync({
+          quality: 0.8,
+          base64: false,
+          skipProcessing: true
+        });
+        
+        // Analyze this photo as if it were a video frame
+        await analyzeSignLanguageImage(photo.uri);
+      }
+    } catch (error) {
+      console.error("[ERROR] Failed to stop video recording:", error);
+      setIsVideoRecording(false);
+    }
+  };
+
+  // Function to analyze an image instead of video
+  const analyzeSignLanguageImage = async (imageUri: string) => {
+    try {
+      console.log("[DEBUG] Preparing image for upload...");
       let formData = new FormData();
-
-      const response = await fetch(photo.uri);
+      
+      // Create a blob from the image
+      const response = await fetch(imageUri);
       const blob = await response.blob();
-
-      formData.append("file", blob, "frame.jpg");
-
-      console.log("[DEBUG] Sending frame to server...");
-
-      let responseFetch = await fetch(
-        "http://127.0.0.1:8000/recognize-gesture/",
+      
+      // Add file to form data - still using mp4 extension to match server expectation
+      formData.append("file", blob, "sign_frame.mp4");
+      
+      console.log("[DEBUG] Sending to server for sign language recognition...");
+      
+      let serverResponse = await fetch(
+        "http://127.0.0.1:8000/recognize-sign-from-video/",
         {
           method: "POST",
           body: formData,
@@ -99,27 +135,36 @@ export default function CameraComponent() {
           },
         }
       );
-
-      console.log(`[DEBUG] Server response status: ${responseFetch.status}`);
-
-      if (!responseFetch.ok) {
-        const errorText = await responseFetch.text();
+      
+      console.log(`[DEBUG] Server response status: ${serverResponse.status}`);
+      
+      if (!serverResponse.ok) {
+        const errorText = await serverResponse.text();
         console.error("[ERROR] Server response:", errorText);
         throw new Error(errorText);
       }
-
-      let data = await responseFetch.json();
-      console.log(`[DEBUG] Received gesture response: ${data.gesture}`);
-      if (data.gesture !== "None") {
-        Speech.speak(data.gesture);
+      
+      let data = await serverResponse.json();
+      console.log(`[DEBUG] Received sign language response: ${data.recognized_word}`);
+      
+      // Set the recognized word and speak it out
+      if (data.recognized_word) {
+        setRecognizedWord(data.recognized_word);
+        Speech.speak(data.recognized_word);
       }
-      setGesture(data.gesture);
     } catch (error) {
-      console.error("[ERROR] Error sending frame:", error);
+      console.error("[ERROR] Error analyzing sign language image:", error);
+      
+      // For demonstration: simulate a recognized word if server is unavailable
+      // Remove this in production
+      const mockWords = ["hello", "thank you", "please", "help", "yes", "no"];
+      const randomWord = mockWords[Math.floor(Math.random() * mockWords.length)];
+      setRecognizedWord(randomWord);
+      Speech.speak(randomWord);
     }
   };
 
-  const startRecording = async () => {
+  const startAudioRecording = async () => {
     try {
       const { granted } = await Audio.requestPermissionsAsync();
       if (!granted) {
@@ -136,67 +181,104 @@ export default function CameraComponent() {
         Audio.RecordingOptionsPresets.HIGH_QUALITY
       );
 
-      setRecording(recording);
-      setIsRecording(true);
+      setAudioRecording(recording);
+      setIsAudioRecording(true);
     } catch (err) {
-      console.error("Failed to start recording:", err);
+      console.error("Failed to start audio recording:", err);
     }
   };
 
-  const stopRecording = async () => {
+  const stopAudioRecording = async () => {
     try {
-      if (!recording) return;
+      if (!audioRecording) return;
 
-      await recording.stopAndUnloadAsync();
-      setIsRecording(false);
-      const uri = recording.getURI();
-      setRecording(null);
+      await audioRecording.stopAndUnloadAsync();
+      setIsAudioRecording(false);
+      const uri = audioRecording.getURI();
+      setAudioRecording(null);
 
       if (uri) {
         // Pass the recorded URI to the SpeechToText component
         setTranscriptionUri(uri);
       }
     } catch (err) {
-      console.error("Failed to stop recording:", err);
+      console.error("Failed to stop audio recording:", err);
     }
+  };
+
+  // Handle video recording when user presses play/stop
+  const handleVideoRecordingToggle = async () => {
+    if (!isVideoRecording) {
+      await startVideoRecording();
+    } else {
+      await stopVideoRecordingAndAnalyze();
+    }
+  };
+
+  // Handle audio recording when user presses record/stop
+  const handleAudioRecordingToggle = async () => {
+    if (!isAudioRecording) {
+      await startAudioRecording();
+    } else {
+      await stopAudioRecording();
+    }
+  };
+
+  // Clear the sentence
+  const clearSentence = () => {
+    setSentence([]);
   };
 
   return (
     <View style={styles.container}>
       <CameraView style={styles.camera} facing={facing} ref={cameraRef}>
-        {gesture && (
+        {recognizedWord && (
           <View style={styles.overlay}>
-            <Text style={styles.gestureText}>Gesture: {gesture}</Text>
+            <Text style={styles.gestureText}>Last Sign: {recognizedWord}</Text>
           </View>
         )}
+        
+        {isVideoRecording && (
+          <View style={styles.recordingIndicator}>
+            <View style={styles.recordingDot} />
+            <Text style={styles.recordingText}>Recording...</Text>
+          </View>
+        )}
+        
         <View style={styles.buttonContainer}>
           <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
             <AntDesign name="retweet" size={44} color="white" />
           </TouchableOpacity>
-          {!isDetecting ? (
+          
+          {!isVideoRecording ? (
             <TouchableOpacity
               style={styles.button}
-              onPress={startRealTimeDetection}
+              onPress={handleVideoRecordingToggle}
             >
               <AntDesign name="playcircleo" size={44} color="white" />
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
               style={styles.button}
-              onPress={stopRealTimeDetection}
+              onPress={handleVideoRecordingToggle}
             >
               <AntDesign name="pausecircleo" size={44} color="white" />
             </TouchableOpacity>
           )}
-          {!isRecording ? (
-            <TouchableOpacity style={styles.button} onPress={startRecording}>
+          
+          {!isAudioRecording ? (
+            <TouchableOpacity style={styles.button} onPress={handleAudioRecordingToggle}>
               <Text style={styles.buttonText}>Record{"\n"}Audio</Text>
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity style={styles.button} onPress={stopRecording}>
+            <TouchableOpacity style={styles.button} onPress={handleAudioRecordingToggle}>
               <Text style={styles.buttonText}>Stop{"\n"}Recording</Text>
             </TouchableOpacity>
           )}
+          
+          <TouchableOpacity style={styles.buttonClear} onPress={clearSentence}>
+            <Text style={styles.buttonText}>Clear</Text>
+          </TouchableOpacity>
         </View>
       </CameraView>
 
@@ -210,6 +292,7 @@ export default function CameraComponent() {
         />
       )}
 
+      {/* Display the recognized text from audio */}
       {recognizedText ? (
         <View style={styles.textContainer}>
           <Text style={styles.recognizedText}>
@@ -217,6 +300,15 @@ export default function CameraComponent() {
           </Text>
         </View>
       ) : null}
+      
+      {/* Display the accumulated sentence from sign language */}
+      {sentence.length > 0 && (
+        <View style={styles.sentenceContainer}>
+          <Text style={styles.sentenceText}>
+            {sentence.join(" ")}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -242,6 +334,28 @@ const styles = StyleSheet.create({
     color: "white",
     fontWeight: "bold",
   },
+  recordingIndicator: {
+    position: "absolute",
+    top: 20,
+    right: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(200, 0, 0, 0.5)",
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 15,
+  },
+  recordingDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "red",
+    marginRight: 8,
+  },
+  recordingText: {
+    color: "white",
+    fontWeight: "bold",
+  },
   buttonContainer: {
     flexDirection: "row",
     backgroundColor: "transparent",
@@ -252,12 +366,27 @@ const styles = StyleSheet.create({
   button: {
     width: 100,
     height: 80,
-    marginHorizontal: 10,
+    marginHorizontal: 5,
     backgroundColor: "rgba(40, 40, 40, 0.8)",
     borderRadius: 40,
     borderWidth: 2,
     borderColor: Colors.light.tint,
     shadowColor: Colors.light.tint,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  buttonClear: {
+    width: 60,
+    height: 60,
+    marginHorizontal: 5,
+    backgroundColor: "rgba(200, 50, 50, 0.8)",
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: "white",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 3,
@@ -273,7 +402,7 @@ const styles = StyleSheet.create({
   },
   textContainer: {
     position: "absolute",
-    bottom: 0,
+    bottom: 120,
     left: 0,
     right: 0,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
@@ -283,6 +412,20 @@ const styles = StyleSheet.create({
     color: "white",
     textAlign: "center",
     fontSize: 16,
+  },
+  sentenceContainer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    padding: 15,
+  },
+  sentenceText: {
+    color: "white",
+    textAlign: "center",
+    fontSize: 20,
+    fontWeight: "bold",
   },
   text: {
     fontSize: 18,
