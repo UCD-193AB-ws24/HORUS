@@ -228,13 +228,20 @@ export default function CameraComponent() {
   const clearSentence = () => {
     setSentence([]);
   };
+  
+  // Remove the last word from the sentence
+  const undoLastWord = () => {
+    if (sentence.length > 0) {
+      setSentence(prev => prev.slice(0, -1));
+    }
+  };
 
   return (
     <View style={styles.container}>
       <CameraView style={styles.camera} facing={facing} ref={cameraRef}>
         {recognizedWord && (
           <View style={styles.overlay}>
-            <Text style={styles.gestureText}>Last Sign: {recognizedWord}</Text>
+            <Text style={styles.gestureText}>Sign: {recognizedWord}</Text>
           </View>
         )}
         
@@ -266,6 +273,17 @@ export default function CameraComponent() {
             </TouchableOpacity>
           )}
           
+          {/* Utility buttons moved to the top row */}
+          <View style={styles.utilityButtonsGroup}>
+            <TouchableOpacity style={styles.utilityButton} onPress={undoLastWord}>
+              <Text style={styles.utilityButtonText}>Undo</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.utilityButton} onPress={clearSentence}>
+              <Text style={styles.utilityButtonText}>Clear</Text>
+            </TouchableOpacity>
+          </View>
+          
           {!isAudioRecording ? (
             <TouchableOpacity style={styles.button} onPress={handleAudioRecordingToggle}>
               <Text style={styles.buttonText}>Record{"\n"}Audio</Text>
@@ -275,10 +293,6 @@ export default function CameraComponent() {
               <Text style={styles.buttonText}>Stop{"\n"}Recording</Text>
             </TouchableOpacity>
           )}
-          
-          <TouchableOpacity style={styles.buttonClear} onPress={clearSentence}>
-            <Text style={styles.buttonText}>Clear</Text>
-          </TouchableOpacity>
         </View>
       </CameraView>
 
@@ -379,20 +393,32 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  buttonClear: {
-    width: 60,
-    height: 60,
+  // Container for utility buttons (now a column in the row)
+  utilityButtonsGroup: {
+    flexDirection: "column",
+    justifyContent: "space-between",
+    height: 80,
     marginHorizontal: 5,
-    backgroundColor: "rgba(200, 50, 50, 0.8)",
-    borderRadius: 30,
-    borderWidth: 2,
+  },
+  // Style for utility buttons
+  utilityButton: {
+    width: 70,
+    height: 35,
+    backgroundColor: "rgba(80, 80, 80, 0.8)",
+    borderRadius: 18,
+    borderWidth: 1,
     borderColor: "white",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
     alignItems: "center",
     justifyContent: "center",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1,
+    elevation: 2,
+  },
+  utilityButtonText: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "white",
   },
   buttonText: {
     fontSize: 16,
