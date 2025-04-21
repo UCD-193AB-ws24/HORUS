@@ -17,20 +17,12 @@ export default function CameraComponent() {
   const [recognizedText, setRecognizedText] = useState("");
   const [transcriptionUri, setTranscriptionUri] = useState<string | null>(null);
   const [sentence, setSentence] = useState<string[]>([]);
+  const [videoUri, setVideoUri] = useState<string | null>(null);
   
-  // Reference to hold timeout ID for simulated recording
-  const recordingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const cameraRef = useRef<CameraView | null>(null);
 
   useEffect(() => {
     console.log("[DEBUG] Checking camera permissions...");
-    
-    // Cleanup any timeouts when component unmounts
-    return () => {
-      if (recordingTimeoutRef.current) {
-        clearTimeout(recordingTimeoutRef.current);
-      }
-    };
   }, []);
 
   // Add recognized words to our sentence
@@ -63,67 +55,76 @@ export default function CameraComponent() {
     setFacing((current) => (current === "back" ? "front" : "back"));
   }
 
-  // Simulate starting video recording
+  // Actually start video recording
   const startVideoRecording = async () => {
     try {
-      console.log("[DEBUG] Starting simulated video recording...");
+      console.log("[DEBUG] Starting actual video recording...");
+      
+      if (!cameraRef.current) {
+        console.error("[ERROR] Camera reference is null");
+        return;
+      }
+      
       setIsVideoRecording(true);
       
-      // Record for 3 seconds before automatically stopping
-      recordingTimeoutRef.current = setTimeout(() => {
-        if (isVideoRecording) {
-          stopVideoRecordingAndAnalyze();
-        }
-      }, 3000); // 3 seconds of simulated recording
+      // Start actual video recording
+      const videoRecordPromise = cameraRef.current.recordAsync({
+        maxDuration: 5, // Maximum duration in seconds
+        quality: '720p',
+        mute: false,      // Include audio
+        mirror: true      // Mirror for front camera (selfie view)
+      });
+      
+      // Set up the promise resolution
+      const recordedVideo = await videoRecordPromise;
+      console.log("[DEBUG] Video recording completed:", recordedVideo.uri);
+      setVideoUri(recordedVideo.uri);
+      
+      // Auto analyze after recording is done
+      await analyzeSignLanguageVideo(recordedVideo.uri);
+      
     } catch (error) {
       console.error("[ERROR] Failed to start video recording:", error);
       setIsVideoRecording(false);
     }
   };
 
-  // Simulate stopping video recording and analyze the result
-  const stopVideoRecordingAndAnalyze = async () => {
+  // Stop video recording
+  const stopVideoRecording = async () => {
     try {
-      console.log("[DEBUG] Stopping simulated video recording...");
+      console.log("[DEBUG] Stopping video recording...");
+      
+      if (!cameraRef.current) {
+        console.error("[ERROR] Camera reference is null");
+        return;
+      }
+      
+      // Stop the recording
+      cameraRef.current.stopRecording();
       setIsVideoRecording(false);
       
-      // Clear the timeout if user manually stopped recording
-      if (recordingTimeoutRef.current) {
-        clearTimeout(recordingTimeoutRef.current);
-        recordingTimeoutRef.current = null;
-      }
+      // Note: Analysis will happen when the recording promise resolves
       
-      // In web environment, we'll capture a photo and send it for analysis
-      if (cameraRef.current) {
-        const photo = await cameraRef.current.takePictureAsync({
-          quality: 0.8,
-          base64: false,
-          skipProcessing: true
-        });
-        
-        // Analyze this photo as if it were a video frame
-        await analyzeSignLanguageImage(photo.uri);
-      }
     } catch (error) {
       console.error("[ERROR] Failed to stop video recording:", error);
       setIsVideoRecording(false);
     }
   };
 
-  // Function to analyze an image instead of video
-  const analyzeSignLanguageImage = async (imageUri: string) => {
+  // Function to analyze actual video
+  const analyzeSignLanguageVideo = async (uri: string) => {
     try {
-      console.log("[DEBUG] Preparing image for upload...");
+      console.log("[DEBUG] Preparing video for upload...");
       let formData = new FormData();
       
-      // Create a blob from the image
-      const response = await fetch(imageUri);
+      // Get the video file info
+      const response = await fetch(uri);
       const blob = await response.blob();
       
-      // Add file to form data - still using mp4 extension to match server expectation
-      formData.append("file", blob, "sign_frame.mp4");
+      // Add file to form data with the correct .mp4 extension
+      formData.append("file", blob, "sign_language.mp4");
       
-      console.log("[DEBUG] Sending to server for sign language recognition...");
+      console.log("[DEBUG] Sending video to server for sign language recognition...");
       
       let serverResponse = await fetch(
         "http://127.0.0.1:8000/recognize-sign-from-video/",
@@ -153,14 +154,8 @@ export default function CameraComponent() {
         Speech.speak(data.recognized_word);
       }
     } catch (error) {
-      console.error("[ERROR] Error analyzing sign language image:", error);
+      console.error("[ERROR] Error analyzing sign language video:", error);
       
-      // For demonstration: simulate a recognized word if server is unavailable
-      // Remove this in production
-      const mockWords = ["hello", "thank you", "please", "help", "yes", "no"];
-      const randomWord = mockWords[Math.floor(Math.random() * mockWords.length)];
-      setRecognizedWord(randomWord);
-      Speech.speak(randomWord);
     }
   };
 
@@ -211,7 +206,7 @@ export default function CameraComponent() {
     if (!isVideoRecording) {
       await startVideoRecording();
     } else {
-      await stopVideoRecordingAndAnalyze();
+      await stopVideoRecording();
     }
   };
 
@@ -238,7 +233,13 @@ export default function CameraComponent() {
 
   return (
     <View style={styles.container}>
-      <CameraView style={styles.camera} facing={facing} ref={cameraRef}>
+      <CameraView 
+        style={styles.camera} 
+        facing={facing} 
+        ref={cameraRef}
+        video={true}  // Enable video recording capabilities
+        audio={true}  // Enable audio recording with video
+      >
         {recognizedWord && (
           <View style={styles.overlay}>
             <Text style={styles.gestureText}>Sign: {recognizedWord}</Text>
