@@ -45,12 +45,15 @@ export default function CameraComponent() {
     console.log("[DEBUG] Camera permissions not granted");
     return (
       <View style={styles.container}>
-        <Text style={{ textAlign: "center" }}>
+        <Text style={{ fontSize: 22, textAlign: "center" }}>
           We need your permission to show the camera
         </Text>
-        <TouchableOpacity onPress={requestPermission} style={styles.button}>
-          <Text style={styles.text}>Grant Permission</Text>
-        </TouchableOpacity>
+        <Text>{"\n"}</Text>
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity onPress={requestPermission} style={styles.button}>
+            <Text style={styles.text}>Grant Permission</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }

@@ -13,10 +13,12 @@ import aiohttp
 import pandas as pd
 import torch
 import whisper
-from VideoLoader import KeypointExtractor, read_video
+# from VideoLoader import KeypointExtractor, read_video
 from VideoDataset import process_keypoints
 from model import SLR
 from pydantic import BaseModel
+import shutil
+import datetime
 
 import torch._dynamo
 torch._dynamo.config.suppress_errors = True
@@ -87,10 +89,6 @@ async def recognize_sign_from_video(file: UploadFile = File(...)):
         for i in range(len(gloss_info)):
             idx_to_word[gloss_info['idx'][i]] = gloss_info['word'][i]
         
-        # Load the model exactly as in the notebook
-        import torch._dynamo
-        torch._dynamo.config.suppress_errors = True
-        
         model = SLR(
             n_embd=12*64, 
             n_cls_dict={'asl_citizen':2305, 'lsfb': 4657, 'wlasl':2000, 'autsl':226, 'rsl':1001},
@@ -124,10 +122,10 @@ async def recognize_sign_from_video(file: UploadFile = File(...)):
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        # Clean up the temporary file
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+    # finally:
+        # # Clean up the temporary file
+        # if os.path.exists(temp_path):
+        #     os.remove(temp_path)
 
 @app.get("/test-sign-recognition/{video_filename}")
 async def test_sign_recognition(video_filename: str, request: Request):
@@ -212,8 +210,18 @@ async def process_audio(audio: UploadFile = File(...)):
 
 @app.post("/send_help_form/")
 async def send_help_form(item: Item):
-    print(item.signed, item.translated, item.video)
-    print(item)
+    if not item:
+        raise HTTPException(status_code=400, detail=f"No help form provided")
+    
+    if item.video:
+        video_file = "sign_language.mp4"
+        if os.path.isfile(video_file):
+            ct = datetime.datetime.now()
+            new_video_file_name = item.signed + str(ct) + ".mp4"
+            os.rename(video_file, new_video_file_name)
+            destination = "./error_videos/"
+            shutil.move("./" + new_video_file_name, destination)
+
     return {"message": "File received"}
 
 @app.get("/")
