@@ -1,11 +1,12 @@
 import { SetStateAction, useEffect, useRef, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Modal, TextInput } from "react-native";
 import { CameraType, CameraView, useCameraPermissions } from "expo-camera";
 import { AntDesign } from "@expo/vector-icons";
 import * as Speech from "expo-speech";
 import { Colors } from "@/constants/Colors";
 import { Audio } from "expo-av";
 import { SpeechToText } from "@/components/SpeechToText";
+import Checkbox from 'expo-checkbox';
 
 export default function CameraComponent() {
   const [facing, setFacing] = useState<CameraType>("front"); // Set front camera as default for signing
@@ -18,6 +19,10 @@ export default function CameraComponent() {
   const [transcriptionUri, setTranscriptionUri] = useState<string | null>(null);
   const [sentence, setSentence] = useState<string[]>([]);
   const [videoUri, setVideoUri] = useState<string | null>(null);
+  const [needHelp, setNeedHelp] = useState(false);
+  const [signSigned, onChangeSignSigned] = useState('');
+  const [signTranslated, onChangeSignTranslated] = useState('');
+  const [isChecked, setChecked] = useState(false);
   
   const cameraRef = useRef<CameraView | null>(null);
 
@@ -231,6 +236,37 @@ export default function CameraComponent() {
     }
   };
 
+  const sendFormToServer = async () => {
+    try {
+        let responseFetch = await fetch('http://127.0.0.1:8000/send_help_form/', {
+            method: 'POST',
+            body: JSON.stringify({"signed": signSigned, "translated": signTranslated, "video": isChecked}),
+            headers: {
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+            },
+        });
+        if (!responseFetch.ok) {
+            const errorText = await responseFetch.text();
+            console.error('[ERROR] Server response:', errorText);
+            throw new Error(errorText);
+        }
+    } catch (error) {
+        console.error('[ERROR] Error sending form:', error);
+    }
+    onChangeSignSigned('');
+    onChangeSignTranslated('');
+    setChecked(false)
+    setNeedHelp(false);
+  };  
+
+  const exitHelpPage = () => {
+    onChangeSignSigned('');
+    onChangeSignTranslated('');
+    setChecked(false)
+    setNeedHelp(false);
+  }
+
   return (
     <View style={styles.container}>
       <CameraView 
@@ -294,6 +330,9 @@ export default function CameraComponent() {
               <Text style={styles.buttonText}>Stop{"\n"}Recording</Text>
             </TouchableOpacity>
           )}
+          <TouchableOpacity style={styles.button} onPress={() => setNeedHelp(true)}>
+            <Text style={styles.buttonText}>Report an Error</Text>
+          </TouchableOpacity>
         </View>
       </CameraView>
 
@@ -324,6 +363,32 @@ export default function CameraComponent() {
           </Text>
         </View>
       )}
+      <Modal animationType="slide" transparent={true} visible={needHelp}>
+        <View style={styles.centeredView}>
+          <View style={styles.modalView}>
+            <Text style={styles.modalText}>If you would like to report a wrong translation please fill out the boxes below:</Text>
+            <Text style={styles.modalText}>{"\n"}What sign did you sign?</Text>
+            <TextInput style={styles.input} onChangeText={onChangeSignSigned} value={signSigned}/>
+            <Text style={styles.modalText}>What sign was translated?</Text>
+            <TextInput style={styles.input} onChangeText={onChangeSignTranslated} value={signTranslated}/>
+            <Text style={styles.modalText}>{"\n"}Would you like to include the video of you signing?</Text>
+            <Checkbox
+              style={styles.checkbox}
+              value={isChecked}
+              onValueChange={setChecked}
+              color={isChecked ? '#4630EB' : undefined}
+            />
+          </View>
+          <View style={styles.modalButton}>
+            <TouchableOpacity style={styles.button} onPress={exitHelpPage}>
+              <Text style={styles.buttonText}>Exit</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={sendFormToServer}>
+              <Text style={styles.buttonText}>Submit</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -459,5 +524,49 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "white",
     textAlign: "center",
+  },
+  centeredView: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalView: {
+    margin: 20,
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 35,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "black",
+    textAlign: "center",
+  },
+  input: {
+    height: 40,
+    margin: 12,
+    borderWidth: 1,
+    padding: 10,
+  },
+  modalButton: {
+    flexDirection: "row",
+    backgroundColor: "transparent",
+    justifyContent: "center",
+    alignItems: "flex-end",
+    marginBottom: 20,
+  },
+  checkbox: {
+    height: 20,
+    width: 20,
+    margin: 8,
   },
 });
