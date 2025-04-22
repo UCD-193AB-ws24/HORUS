@@ -13,7 +13,7 @@ import aiohttp
 import pandas as pd
 import torch
 import whisper
-# from VideoLoader import KeypointExtractor, read_video
+from VideoLoader import KeypointExtractor, read_video
 from VideoDataset import process_keypoints
 from model import SLR
 from pydantic import BaseModel
