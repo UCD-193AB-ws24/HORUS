@@ -48,13 +48,12 @@ import torch
 
 def read_video(file_path):
     try:
-        video, audio, info = read_video(file_path, pts_unit='sec')
-        return video
-    except Exception as e:
+        # Use OpenCV to read the video file directly
         cap = cv2.VideoCapture(file_path)
         if not cap.isOpened():
-            print("Error: Could not open video file.")
+            print("Error: Could not open video file:", file_path)
             return None
+            
         frames = []
         while True:
             ret, frame = cap.read()
@@ -63,8 +62,17 @@ def read_video(file_path):
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frame_tensor = torch.tensor(frame)
             frames.append(frame_tensor)
+            
         cap.release()
+        
+        if len(frames) == 0:
+            print("Error: No frames read from video file")
+            return None
+            
         return torch.stack(frames)
+    except Exception as e:
+        print(f"Error reading video file: {e}")
+        return None
 
 
 

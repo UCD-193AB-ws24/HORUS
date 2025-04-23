@@ -6,6 +6,8 @@ import * as Speech from "expo-speech";
 import { Colors } from "@/constants/Colors";
 import { Audio } from "expo-av";
 import { SpeechToText } from "@/components/SpeechToText";
+import { HOSTNAME } from "@env";
+
 
 export default function CameraComponent() {
   const [facing, setFacing] = useState<CameraType>("front"); // Set front camera as default for signing
@@ -67,11 +69,10 @@ export default function CameraComponent() {
       
       setIsVideoRecording(true);
       
-      // Start actual video recording
+      // Using the recordAsync method with updated options
+      // Note: quality is now set as a prop on CameraView, not in recordAsync options
       const videoRecordPromise = cameraRef.current.recordAsync({
         maxDuration: 5, // Maximum duration in seconds
-        quality: '720p',
-        mute: false,      // Include audio
         mirror: true      // Mirror for front camera (selfie view)
       });
       
@@ -99,11 +100,11 @@ export default function CameraComponent() {
         return;
       }
       
-      // Stop the recording
+      // Use the stopRecording method to stop the video recording
       cameraRef.current.stopRecording();
       setIsVideoRecording(false);
       
-      // Note: Analysis will happen when the recording promise resolves
+      // Note: Analysis will happen when the recording promise resolves in startVideoRecording
       
     } catch (error) {
       console.error("[ERROR] Failed to stop video recording:", error);
@@ -117,17 +118,19 @@ export default function CameraComponent() {
       console.log("[DEBUG] Preparing video for upload...");
       let formData = new FormData();
       
-      // Get the video file info
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      
-      // Add file to form data with the correct .mp4 extension
-      formData.append("file", blob, "sign_language.mp4");
+      // In React Native, we need to append the file differently
+      // No need to fetch and create a blob - directly use the uri
+      formData.append("file", {
+        uri: uri,
+        name: "sign_language.mp4",
+        type: "video/mp4"
+      } as any);
       
       console.log("[DEBUG] Sending video to server for sign language recognition...");
+      console.log('[DEBUG] Sending request to: ', HOSTNAME + "recognize-sign-from-video/");
       
       let serverResponse = await fetch(
-        "http://127.0.0.1:8000/recognize-sign-from-video/",
+        HOSTNAME + "recognize-sign-from-video/",
         {
           method: "POST",
           body: formData,
@@ -155,7 +158,7 @@ export default function CameraComponent() {
       }
     } catch (error) {
       console.error("[ERROR] Error analyzing sign language video:", error);
-      
+      // For demonstration: simulate a recognized word if server is unavailable
     }
   };
 
@@ -237,14 +240,9 @@ export default function CameraComponent() {
         style={styles.camera} 
         facing={facing} 
         ref={cameraRef}
-        video={true}  // Enable video recording capabilities
-        audio={true}  // Enable audio recording with video
+        mode="video"
+        videoQuality="720p"
       >
-        {recognizedWord && (
-          <View style={styles.overlay}>
-            <Text style={styles.gestureText}>Sign: {recognizedWord}</Text>
-          </View>
-        )}
         
         {isVideoRecording && (
           <View style={styles.recordingIndicator}>

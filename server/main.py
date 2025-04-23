@@ -12,6 +12,7 @@ import requests
 import aiohttp
 import pandas as pd
 import torch
+import uvicorn
 import whisper
 from VideoLoader import KeypointExtractor, read_video
 from VideoDataset import process_keypoints
@@ -46,6 +47,35 @@ recognizer = GestureRecognizer.create_from_options(options)
 whisper_model = whisper.load_model("tiny")
 
 
+model = SLR(
+    n_embd=16*64, 
+    n_cls_dict={'asl_citizen':2305, 'lsfb': 4657, 'wlasl':2000, 'autsl':226, 'rsl':1001},
+    n_head=16, 
+    n_layer=6,
+    n_keypoints=63,
+    dropout=0.6, 
+    max_len=64,
+    bias=True
+)
+
+# for small model:
+# model = SLR(
+#     n_embd=12*64, 
+#     n_cls_dict={'asl_citizen':2305, 'lsfb': 4657, 'wlasl':2000, 'autsl':226, 'rsl':1001},
+#     n_head=12, 
+#     n_layer=4,
+#     n_keypoints=63,
+#     dropout=0.2, 
+#     max_len=64,
+#     bias=True
+# )
+
+model = torch.compile(model)
+model.load_state_dict(torch.load('./models/big_model.pth', map_location=torch.device('cpu')))
+model.eval()
+
+gloss_info = pd.read_csv('./gloss.csv')
+
 @app.post("/recognize-sign-from-video/")
 async def recognize_sign_from_video(file: UploadFile = File(...)):
     """
@@ -76,29 +106,12 @@ async def recognize_sign_from_video(file: UploadFile = File(...)):
         selected_keypoints = selected_keypoints + [x + 520 for x in ([2, 5, 7, 8, 11, 12, 13, 14, 15, 16])]
         
         # Load the gloss mapping
-        gloss_info = pd.read_csv('./gloss.csv')
         idx_to_word = {}
         for i in range(len(gloss_info)):
             idx_to_word[gloss_info['idx'][i]] = gloss_info['word'][i]
         
         # Load the model exactly as in the notebook
-        import torch._dynamo
-        torch._dynamo.config.suppress_errors = True
         
-        model = SLR(
-            n_embd=12*64, 
-            n_cls_dict={'asl_citizen':2305, 'lsfb': 4657, 'wlasl':2000, 'autsl':226, 'rsl':1001},
-            n_head=12, 
-            n_layer=4,
-            n_keypoints=63,
-            dropout=0.2, 
-            max_len=64,
-            bias=True
-        )
-        
-        model = torch.compile(model)
-        model.load_state_dict(torch.load('./models/small_model.pth', map_location=torch.device('cpu')))
-        model.eval()
         
         # Process the keypoints and run inference
         sample_amount = 10
@@ -279,8 +292,11 @@ def record_audio_and_send(
 
 
 if __name__ == "__main__":
-    record_audio_and_send(
-        server_url="http://127.0.0.1:8000/process_audio/",  # or your LAN IP
-        duration=5,
-        output_filename="temp_audio.wav"
+    uvicorn.run(
+        "main:app",  # Replace with your actual module:app
+        host="127.0.0.1",  # Listen on all interfaces
+        port=8001,
     )
+
+        #     ssl_keyfile="./certs/key.pem",
+        #     ssl_certfile="./certs/cert.pem"
