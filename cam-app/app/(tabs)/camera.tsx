@@ -1,13 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
-import { SpeechToText } from "@/components/SpeechToText";
-import { AntDesign } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
-import * as Speech from 'expo-speech';
+import { useEffect, useRef, useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { CameraType, CameraView, useCameraPermissions } from "expo-camera";
+import { AntDesign } from "@expo/vector-icons";
+import * as FileSystem from "expo-file-system";
+import * as Speech from "expo-speech";
 
 export default function CameraComponent() {
-  const [facing, setFacing] = useState<CameraType>('back');
+  const [facing, setFacing] = useState<CameraType>("back");
   const [permission, requestPermission] = useCameraPermissions();
   const [gesture, setGesture] = useState<string | null>(null);
   const [isDetecting, setIsDetecting] = useState(false);
@@ -16,18 +15,20 @@ export default function CameraComponent() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    console.log('[DEBUG] Checking camera permissions...');
+    console.log("[DEBUG] Checking camera permissions...");
   }, []);
 
   if (!permission) {
-    console.log('[DEBUG] Camera permissions are still loading...');
+    console.log("[DEBUG] Camera permissions are still loading...");
     return <View />;
   }
   if (!permission.granted) {
-    console.log('[DEBUG] Camera permissions not granted');
+    console.log("[DEBUG] Camera permissions not granted");
     return (
       <View style={styles.container}>
-        <Text style={{ textAlign: 'center' }}>We need your permission to show the camera</Text>
+        <Text style={{ textAlign: "center" }}>
+          We need your permission to show the camera
+        </Text>
         <TouchableOpacity onPress={requestPermission} style={styles.button}>
           <Text style={styles.text}>Grant Permission</Text>
         </TouchableOpacity>
@@ -36,30 +37,32 @@ export default function CameraComponent() {
   }
 
   function toggleCameraFacing() {
-    console.log('[DEBUG] Toggling camera facing...');
-    setFacing((current) => (current === 'back' ? 'front' : 'back'));
+    console.log("[DEBUG] Toggling camera facing...");
+    setFacing((current) => (current === "back" ? "front" : "back"));
   }
 
+  // commented cause of error *(1)
   const startRealTimeDetection = () => {
-    console.log('[DEBUG] Starting real-time gesture detection...');
     setIsDetecting(true);
     intervalRef.current = setInterval(async () => {
       if (cameraRef.current) {
-        console.log('[DEBUG] Capturing frame...');
+        console.log("[DEBUG] Capturing frame...");
         const options = { quality: 0.5, base64: true, exif: false };
         try {
           const photo = await cameraRef.current.takePictureAsync(options);
-          console.log(`[DEBUG] Frame captured. Size: ${photo?.width}x${photo?.height}`);
+          console.log(
+            `[DEBUG] Frame captured. Size: ${photo?.width}x${photo?.height}`
+          );
           sendFrameToServer(photo);
         } catch (error) {
-          console.error('[ERROR] Failed to capture frame:', error);
+          console.error("[ERROR] Failed to capture frame:", error);
         }
       }
     }, 300); // Adjust interval based on server response speed
   };
 
   const stopRealTimeDetection = () => {
-    console.log('[DEBUG] Stopping real-time gesture detection...');
+    console.log("[DEBUG] Stopping real-time gesture detection...");
     setIsDetecting(false);
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -69,62 +72,63 @@ export default function CameraComponent() {
 
   const sendFrameToServer = async (photo: any) => {
     try {
-        console.log('[DEBUG] Preparing frame for upload...');
-        let formData = new FormData();
+      console.log("[DEBUG] Preparing frame for upload...");
+      let formData = new FormData();
 
-        const response = await fetch(photo.uri);
-        const blob = await response.blob();
+      const response = await fetch(photo.uri);
+      const blob = await response.blob();
 
-        formData.append('file', blob, 'frame.jpg');
+      formData.append("file", blob, "frame.jpg");
 
-        console.log('[DEBUG] Sending frame to server...');
+      console.log("[DEBUG] Sending frame to server...");
 
-        let responseFetch = await fetch('http://127.0.0.1:8000/recognize-gesture/', {
-            method: 'POST',
-            body: formData,
-            headers: {
-                "Accept": "application/json",
-            },
-        });
-
-        console.log(`[DEBUG] Server response status: ${responseFetch.status}`);
-
-        if (!responseFetch.ok) {
-            const errorText = await responseFetch.text();
-            console.error('[ERROR] Server response:', errorText);
-            throw new Error(errorText);
+      let responseFetch = await fetch(
+        "http://127.0.0.1:8000/recognize-gesture/",
+        {
+          method: "POST",
+          body: formData,
+          headers: {
+            Accept: "application/json",
+          },
         }
+      );
 
-        let data = await responseFetch.json();
-        console.log(`[DEBUG] Received gesture response: ${data.gesture}`);
-        if (data.gesture != "None"){
-          Speech.speak(data.gesture);
-        }
-        setGesture(data.gesture);
+      console.log(`[DEBUG] Server response status: ${responseFetch.status}`);
 
+      if (!responseFetch.ok) {
+        const errorText = await responseFetch.text();
+        console.error("[ERROR] Server response:", errorText);
+        throw new Error(errorText);
+      }
+
+      let data = await responseFetch.json();
+      console.log(`[DEBUG] Received gesture response: ${data.gesture}`);
+      if (data.gesture != "None") {
+        Speech.speak(data.gesture);
+      }
+      setGesture(data.gesture);
     } catch (error) {
-        console.error('[ERROR] Error sending frame:', error);
+      console.error("[ERROR] Error sending frame:", error);
     }
-};
-
+  };
 
   const savePhotoToLocalFolder = async (photoUri: string) => {
     try {
       const photoBlob = await (await fetch(photoUri)).blob();
       const fileUri = `${FileSystem.documentDirectory}frame.jpg`;
-  
+
       // Convert blob to base64
       const reader = new FileReader();
       reader.readAsDataURL(photoBlob);
       reader.onloadend = async () => {
         const base64data = reader.result as string;
-        await FileSystem.writeAsStringAsync(fileUri, base64data.split(',')[1], {
+        await FileSystem.writeAsStringAsync(fileUri, base64data.split(",")[1], {
           encoding: FileSystem.EncodingType.Base64,
         });
-        console.log('Photo saved to:', fileUri);
+        console.log("Photo saved to:", fileUri);
       };
     } catch (error) {
-      console.error('Error saving photo:', error);
+      console.error("Error saving photo:", error);
     }
   };
 
@@ -142,17 +146,22 @@ export default function CameraComponent() {
             <AntDesign name="retweet" size={44} color="black" />
           </TouchableOpacity>
           {!isDetecting ? (
-            <TouchableOpacity style={styles.button} onPress={startRealTimeDetection}>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={startRealTimeDetection} // commented out *(1)
+            >
               <AntDesign name="playcircleo" size={44} color="black" />
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity style={styles.button} onPress={stopRealTimeDetection}>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={stopRealTimeDetection}
+            >
               <AntDesign name="pausecircleo" size={44} color="black" />
             </TouchableOpacity>
           )}
         </View>
       </CameraView>
-      <SpeechToText/> 
     </View>
   );
 }
@@ -160,41 +169,41 @@ export default function CameraComponent() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   camera: {
     flex: 1,
   },
   overlay: {
-    position: 'absolute',
+    position: "absolute",
     top: 50,
     left: 50,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     padding: 10,
     borderRadius: 10,
   },
   gestureText: {
     fontSize: 24,
-    color: 'white',
-    fontWeight: 'bold',
+    color: "white",
+    fontWeight: "bold",
   },
   buttonContainer: {
-    flexDirection: 'row',
-    backgroundColor: 'transparent',
-    justifyContent: 'center',
-    alignItems: 'flex-end',
+    flexDirection: "row",
+    backgroundColor: "transparent",
+    justifyContent: "center",
+    alignItems: "flex-end",
     marginBottom: 20,
   },
   button: {
     padding: 15,
     marginHorizontal: 10,
-    backgroundColor: 'gray',
+    backgroundColor: "gray",
     borderRadius: 10,
   },
   text: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: 'white',
-    textAlign: 'center',
+    fontWeight: "bold",
+    color: "white",
+    textAlign: "center",
   },
 });

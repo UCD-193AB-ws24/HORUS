@@ -1,6 +1,4 @@
 import { Tabs } from "expo-router";
-import React from "react";
-
 import { TabBarIcon } from "@/components/navigation/TabBarIcon";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
@@ -19,7 +17,13 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "Home",
-          tabBarIcon: ({ color, focused }) => (
+          tabBarIcon: ({
+            color,
+            focused,
+          }: {
+            color: string;
+            focused: boolean;
+          }) => (
             <TabBarIcon
               name={focused ? "home" : "home-outline"}
               color={color}
@@ -31,7 +35,13 @@ export default function TabLayout() {
         name="camera"
         options={{
           title: "Camera",
-          tabBarIcon: ({ color, focused }) => (
+          tabBarIcon: ({
+            color,
+            focused,
+          }: {
+            color: string;
+            focused: boolean;
+          }) => (
             <TabBarIcon
               name={focused ? "camera" : "camera-outline"}
               color={color}
@@ -43,9 +53,33 @@ export default function TabLayout() {
         name="guide"
         options={{
           title: "Guide",
-          tabBarIcon: ({ color, focused }) => (
+          tabBarIcon: ({
+            color,
+            focused,
+          }: {
+            color: string;
+            focused: boolean;
+          }) => (
             <TabBarIcon
               name={focused ? "code-slash" : "code-slash-outline"}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="learn"
+        options={{
+          title: "Learn",
+          tabBarIcon: ({
+            color,
+            focused,
+          }: {
+            color: string;
+            focused: boolean;
+          }) => (
+            <TabBarIcon
+              name={focused ? "school" : "school-outline"}
               color={color}
             />
           ),
