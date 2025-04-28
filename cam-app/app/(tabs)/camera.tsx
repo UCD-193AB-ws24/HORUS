@@ -49,8 +49,8 @@ export default function CameraComponent() {
           We need your permission to show the camera
         </Text>
         <Text>{"\n"}</Text>
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity onPress={requestPermission} style={styles.button}>
+        <View style={styles.permissionsButtonContainer}>
+          <TouchableOpacity onPress={requestPermission} style={styles.permissionsButton}>
             <Text style={styles.text}>Grant Permission</Text>
           </TouchableOpacity>
         </View>
@@ -467,6 +467,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  permissionsButton: {
+    width: 120,
+    height: 80,
+    marginHorizontal: 5,
+    backgroundColor: "rgba(40, 40, 40, 0.8)",
+    borderRadius: 40,
+    borderWidth: 2,
+    borderColor: Colors.light.tint,
+    shadowColor: Colors.light.tint,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   // Container for utility buttons (now a column in the row)
   utilityButtonsGroup: {
     flexDirection: "column",
@@ -561,6 +577,7 @@ const styles = StyleSheet.create({
   },
   input: {
     height: 40,
+    width: 75,
     margin: 12,
     borderWidth: 1,
     padding: 10,
@@ -577,4 +594,11 @@ const styles = StyleSheet.create({
     width: 20,
     margin: 8,
   },
+  permissionsButtonContainer: {
+    flexDirection: "row",
+    backgroundColor: "transparent",
+    justifyContent: "center",
+    alignItems: "flex-end",
+    marginBottom: 20,
+  }
 });
