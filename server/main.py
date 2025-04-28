@@ -6,12 +6,22 @@ import cv2
 import numpy as np
 import mediapipe as mp
 import time
-#import pyaudio
+# import pyaudio
 import wave
 import requests
-import time
+import aiohttp
+import pandas as pd
+import torch
 import whisper
+from VideoLoader import KeypointExtractor, read_video
+from VideoDataset import process_keypoints
+from model import SLR
 from pydantic import BaseModel
+import shutil
+import datetime
+
+import torch._dynamo
+torch._dynamo.config.suppress_errors = True
 
 app = FastAPI()
 
@@ -37,10 +47,116 @@ options = GestureRecognizerOptions(
 class Item (BaseModel):
     signed: str
     translated: str
+    video: bool
 
 recognizer = GestureRecognizer.create_from_options(options)
 
 whisper_model = whisper.load_model("tiny")
+
+
+@app.post("/recognize-sign-from-video/")
+async def recognize_sign_from_video(file: UploadFile = File(...)):
+    """
+    Receives an MP4 video file and returns the recognized sign language word
+    """
+    if not file:
+        raise HTTPException(status_code=400, detail="No video file provided")
+    
+    # Save the uploaded file to a temporary location
+    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
+        contents = await file.read()
+        tmp.write(contents)
+        temp_path = tmp.name
+    
+    try:
+        # Read the video file into a tensor
+        video = read_video(temp_path)
+        video = video.permute(0, 3, 1, 2)/255
+        
+        # Extract keypoints using MediaPipe
+        keypoint_extractor = KeypointExtractor()
+        pose = keypoint_extractor.extract(video)
+        height, width = video.shape[-2], video.shape[-1]
+        
+        # Define the selected keypoints (same as in run_model.ipynb)
+        selected_keypoints = list(range(42)) 
+        selected_keypoints = selected_keypoints + [x + 42 for x in ([291, 267, 37, 61, 84, 314, 310, 13, 80, 14] + [152])]
+        selected_keypoints = selected_keypoints + [x + 520 for x in ([2, 5, 7, 8, 11, 12, 13, 14, 15, 16])]
+        
+        # Load the gloss mapping
+        gloss_info = pd.read_csv('./gloss.csv')
+        idx_to_word = {}
+        for i in range(len(gloss_info)):
+            idx_to_word[gloss_info['idx'][i]] = gloss_info['word'][i]
+        
+        model = SLR(
+            n_embd=12*64, 
+            n_cls_dict={'asl_citizen':2305, 'lsfb': 4657, 'wlasl':2000, 'autsl':226, 'rsl':1001},
+            n_head=12, 
+            n_layer=4,
+            n_keypoints=63,
+            dropout=0.2, 
+            max_len=64,
+            bias=True
+        )
+        
+        model = torch.compile(model)
+        model.load_state_dict(torch.load('./models/small_model.pth', map_location=torch.device('cpu')))
+        model.eval()
+        
+        # Process the keypoints and run inference
+        sample_amount = 10
+        logits = 0
+        with torch.no_grad():
+            for i in range(sample_amount):
+                keypoints, valid_keypoints = process_keypoints(
+                    pose, 64, selected_keypoints, height=height, width=width, augment=True
+                )
+                logits = logits + model.heads['asl_citizen'](model(keypoints.unsqueeze(0), valid_keypoints.unsqueeze(0)))
+        
+        # Get the top prediction
+        idx = torch.argsort(logits, descending=True)[0].tolist()
+        top_word = idx_to_word[idx[0]]  # Extract only the first index as requested
+        
+        return {"recognized_word": top_word}
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    # finally:
+        # # Clean up the temporary file
+        # if os.path.exists(temp_path):
+        #     os.remove(temp_path)
+
+@app.get("/test-sign-recognition/{video_filename}")
+async def test_sign_recognition(video_filename: str, request: Request):
+    """
+    Test route that reads an MP4 file from the 'test_videos' directory 
+    and sends it to the recognize-sign-from-video endpoint
+    """
+    video_path = os.path.join("test_videos", video_filename)
+    
+    if not os.path.exists(video_path):
+        raise HTTPException(status_code=404, detail=f"Video file {video_filename} not found in test_videos directory")
+    
+    # Read the video file
+    with open(video_path, "rb") as video_file:
+        file_content = video_file.read()
+    
+    # Create a multipart form with the file
+    form_data = aiohttp.FormData()
+    form_data.add_field(
+        name="file",
+        value=file_content,
+        filename=video_filename,
+        content_type="video/mp4"
+    )
+    
+    # Create a client and make request to our own endpoint
+    async with aiohttp.ClientSession() as session:
+        url = f"http://{request.headers.get('host')}/recognize-sign-from-video/"
+        async with session.post(url, data=form_data) as response:
+            result = await response.json()
+            return result
 
 @app.post("/recognize-gesture/")
 async def recognize_gesture(file: UploadFile = File(...)):
@@ -94,8 +210,18 @@ async def process_audio(audio: UploadFile = File(...)):
 
 @app.post("/send_help_form/")
 async def send_help_form(item: Item):
-    print(item.signed, item.translated)
-    print(item)
+    if not item:
+        raise HTTPException(status_code=400, detail=f"No help form provided")
+    
+    if item.video:
+        video_file = "sign_language.mp4"
+        if os.path.isfile(video_file):
+            ct = datetime.datetime.now()
+            new_video_file_name = item.signed + str(ct) + ".mp4"
+            os.rename(video_file, new_video_file_name)
+            destination = "./error_videos/"
+            shutil.move("./" + new_video_file_name, destination)
+
     return {"message": "File received"}
 
 @app.get("/")
