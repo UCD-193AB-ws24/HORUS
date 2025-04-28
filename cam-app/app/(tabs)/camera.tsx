@@ -293,25 +293,7 @@ export default function CameraComponent() {
         )}
         
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
-            <AntDesign name="retweet" size={44} color="white" />
-          </TouchableOpacity>
           
-          {!isVideoRecording ? (
-            <TouchableOpacity
-              style={styles.button}
-              onPress={handleVideoRecordingToggle}
-            >
-              <AntDesign name="playcircleo" size={44} color="white" />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={styles.button}
-              onPress={handleVideoRecordingToggle}
-            >
-              <AntDesign name="pausecircleo" size={44} color="white" />
-            </TouchableOpacity>
-          )}
           
           {/* Utility buttons moved to the top row */}
           <View style={styles.utilityButtonsGroup}>
@@ -333,12 +315,32 @@ export default function CameraComponent() {
               <Text style={styles.buttonText}>Stop{"\n"}Recording</Text>
             </TouchableOpacity>
           )}
+          
+          {!isVideoRecording ? (
+            <TouchableOpacity
+              style={styles.button}
+              onPress={handleVideoRecordingToggle}
+            >
+              <AntDesign name="playcircleo" size={44} color="white" />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.button}
+              onPress={handleVideoRecordingToggle}
+            >
+              <AntDesign name="pausecircleo" size={44} color="white" />
+            </TouchableOpacity>
+          )}
+          
+          <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
+            <AntDesign name="retweet" size={44} color="white" />
+          </TouchableOpacity>
+
           <TouchableOpacity style={styles.button} onPress={() => setNeedHelp(true)}>
             <Text style={styles.buttonText}>Report an Error</Text>
           </TouchableOpacity>
         </View>
       </CameraView>
-
       {transcriptionUri && (
         <SpeechToText
           audioUri={transcriptionUri}
@@ -366,6 +368,7 @@ export default function CameraComponent() {
           </Text>
         </View>
       )}
+      
       <Modal animationType="slide" transparent={true} visible={needHelp}>
         <View style={styles.centeredView}>
           <View style={styles.modalView}>
@@ -444,10 +447,12 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "flex-end",
+    position: "fixed",
+    top: 760,
     marginBottom: 20,
   },
   button: {
-    width: 100,
+    width: 75,
     height: 80,
     marginHorizontal: 5,
     backgroundColor: "rgba(40, 40, 40, 0.8)",
