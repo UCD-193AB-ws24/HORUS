@@ -7,7 +7,7 @@ import { Colors } from "@/constants/Colors";
 import { Audio } from "expo-av";
 import { SpeechToText } from "@/components/SpeechToText";
 import { HOSTNAME } from "@env";
-
+import * as MediaLibrary from "expo-media-library";
 
 export default function CameraComponent() {
   const [facing, setFacing] = useState<CameraType>("front"); // Set front camera as default for signing
@@ -81,6 +81,26 @@ export default function CameraComponent() {
       console.log("[DEBUG] Video recording completed:", recordedVideo.uri);
       setVideoUri(recordedVideo.uri);
       
+      // Uncomment this if you want to save your recorded video to the user's camera roll
+      // const { status } = await MediaLibrary.requestPermissionsAsync();
+
+      // if (status !== "granted") {
+      //   throw new Error("permission not granted");
+      // }
+
+      // const asset = await MediaLibrary.createAssetAsync(recordedVideo.uri)
+      // let album = await MediaLibrary.getAlbumAsync("MyAppDrafts");
+
+      // if (album === null) {
+      //   album = await MediaLibrary.createAlbumAsync(
+      //     "MyAppDrafts",
+      //     asset,
+      //     false
+      //   );
+      // } else {
+      //   await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+      // }
+
       // Auto analyze after recording is done
       await analyzeSignLanguageVideo(recordedVideo.uri);
       
