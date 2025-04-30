@@ -273,8 +273,6 @@ export default function CameraComponent() {
 
   const isPortrait = () => {
     const dim = Dimensions.get("screen");
-    console.log(dim.height);
-    console.log(dim.width);
     return dim.height >= dim.width;
   }
 
@@ -297,8 +295,15 @@ export default function CameraComponent() {
           </View>
         )}
         
-        {isVideoRecording && (
+        {isVideoRecording && Portrait && (
           <View style={styles.recordingIndicator}>
+            <View style={styles.recordingDot} />
+            <Text style={styles.recordingText}>Recording...</Text>
+          </View>
+        )}
+
+        {isVideoRecording && !Portrait && (
+          <View style={styles.recordingIndicatorLandscape}>
             <View style={styles.recordingDot} />
             <Text style={styles.recordingText}>Recording...</Text>
           </View>
@@ -306,6 +311,7 @@ export default function CameraComponent() {
         
 
         {Portrait && (
+
           <View style={styles.buttonContainerPortrait}>
 
             {/* Utility buttons moved to the top row */}
@@ -370,36 +376,36 @@ export default function CameraComponent() {
             </View>
             
             {!isAudioRecording ? (
-              <TouchableOpacity style={styles.button} onPress={handleAudioRecordingToggle}>
+              <TouchableOpacity style={styles.buttonLandscape} onPress={handleAudioRecordingToggle}>
                 <Text style={styles.buttonText}>Record{"\n"}Audio</Text>
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity style={styles.button} onPress={handleAudioRecordingToggle}>
+              <TouchableOpacity style={styles.buttonLandscape} onPress={handleAudioRecordingToggle}>
                 <Text style={styles.buttonText}>Stop{"\n"}Recording</Text>
               </TouchableOpacity>
             )}
             
             {!isVideoRecording ? (
               <TouchableOpacity
-                style={styles.button}
+                style={styles.buttonLandscape}
                 onPress={handleVideoRecordingToggle}
               >
                 <AntDesign name="playcircleo" size={44} color="white" />
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
-                style={styles.button}
+                style={styles.buttonLandscape}
                 onPress={handleVideoRecordingToggle}
               >
                 <AntDesign name="pausecircleo" size={44} color="white" />
               </TouchableOpacity>
             )}
             
-            <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
+            <TouchableOpacity style={styles.buttonLandscape} onPress={toggleCameraFacing}>
               <AntDesign name="retweet" size={44} color="white" />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.button} onPress={() => setNeedHelp(true)}>
+            <TouchableOpacity style={styles.buttonLandscape} onPress={() => setNeedHelp(true)}>
               <Text style={styles.buttonText}>Report an Error</Text>
             </TouchableOpacity>
           </View>
@@ -432,33 +438,65 @@ export default function CameraComponent() {
           </Text>
         </View>
       )}
+
+      {Portrait && (
+        <Modal animationType="slide" transparent={true} visible={needHelp} supportedOrientations={['portrait', 'landscape']}>
+          <View style={styles.centeredView}>
+            <View style={styles.modalView}>
+              <Text style={styles.modalText}>If you would like to report a wrong translation please fill out the boxes below:</Text>
+              <Text style={styles.modalText}>{"\n"}What sign did you sign?</Text>
+              <TextInput style={styles.input} onChangeText={onChangeSignSigned} value={signSigned}/>
+              <Text style={styles.modalText}>What sign was translated?</Text>
+              <TextInput style={styles.input} onChangeText={onChangeSignTranslated} value={signTranslated}/>
+              <Text style={styles.modalText}>{"\n"}Would you like to include the video of you signing?</Text>
+              <Checkbox
+                style={styles.checkbox}
+                value={isChecked}
+                onValueChange={setChecked}
+                color={isChecked ? '#4630EB' : undefined}
+              />
+            </View>
+            <View style={styles.modalButton}>
+              <TouchableOpacity style={styles.button} onPress={exitHelpPage}>
+                <Text style={styles.buttonText}>Exit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.button} onPress={sendFormToServer}>
+                <Text style={styles.buttonText}>Submit</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {!Portrait && (
+        <Modal animationType="slide" transparent={true} visible={needHelp} supportedOrientations={['portrait', 'landscape']}>
+          <View style={styles.centeredView}>
+            <View style={styles.modalView}>
+              <Text style={styles.modalTextLandscape}>If you would like to report a wrong translation please fill out the boxes below:</Text>
+              <Text style={styles.modalTextLandscape}>{"\n"}What sign did you sign?</Text>
+              <TextInput style={styles.input} onChangeText={onChangeSignSigned} value={signSigned}/>
+              <Text style={styles.modalTextLandscape}>What sign was translated?</Text>
+              <TextInput style={styles.input} onChangeText={onChangeSignTranslated} value={signTranslated}/>
+              <Text style={styles.modalTextLandscape}>{"\n"}Would you like to include the video of you signing?</Text>
+              <Checkbox
+                style={styles.checkbox}
+                value={isChecked}
+                onValueChange={setChecked}
+                color={isChecked ? '#4630EB' : undefined}
+              />
+            </View>
+            <View style={styles.modalButton}>
+              <TouchableOpacity style={styles.button} onPress={exitHelpPage}>
+                <Text style={styles.buttonText}>Exit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.button} onPress={sendFormToServer}>
+                <Text style={styles.buttonText}>Submit</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
       
-      <Modal animationType="slide" transparent={true} visible={needHelp}>
-        <View style={styles.centeredView}>
-          <View style={styles.modalView}>
-            <Text style={styles.modalText}>If you would like to report a wrong translation please fill out the boxes below:</Text>
-            <Text style={styles.modalText}>{"\n"}What sign did you sign?</Text>
-            <TextInput style={styles.input} onChangeText={onChangeSignSigned} value={signSigned}/>
-            <Text style={styles.modalText}>What sign was translated?</Text>
-            <TextInput style={styles.input} onChangeText={onChangeSignTranslated} value={signTranslated}/>
-            <Text style={styles.modalText}>{"\n"}Would you like to include the video of you signing?</Text>
-            <Checkbox
-              style={styles.checkbox}
-              value={isChecked}
-              onValueChange={setChecked}
-              color={isChecked ? '#4630EB' : undefined}
-            />
-          </View>
-          <View style={styles.modalButton}>
-            <TouchableOpacity style={styles.button} onPress={exitHelpPage}>
-              <Text style={styles.buttonText}>Exit</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.button} onPress={sendFormToServer}>
-              <Text style={styles.buttonText}>Submit</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -495,6 +533,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 15,
   },
+  recordingIndicatorLandscape: {
+    position: "absolute",
+    top: 20,
+    left: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(200, 0, 0, 0.5)",
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 15,
+  },
   recordingDot: {
     width: 12,
     height: 12,
@@ -516,16 +565,34 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   buttonContainerLandscape: {
+    display: "flex",
     flexDirection: "column",
     backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "flex-end",
     position: "fixed",
     marginBottom: 20,
+    marginTop: 25,
   },
   button: {
     width: 75,
     height: 80,
+    marginHorizontal: 5,
+    backgroundColor: "rgba(40, 40, 40, 0.8)",
+    borderRadius: 40,
+    borderWidth: 2,
+    borderColor: Colors.light.tint,
+    shadowColor: Colors.light.tint,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  buttonLandscape: {
+    width: 75,
+    height: 65,
     marginHorizontal: 5,
     backgroundColor: "rgba(40, 40, 40, 0.8)",
     borderRadius: 40,
@@ -643,6 +710,12 @@ const styles = StyleSheet.create({
   },
   modalText: {
     fontSize: 18,
+    fontWeight: "bold",
+    color: "black",
+    textAlign: "center",
+  },
+  modalTextLandscape: {
+    fontSize: 12,
     fontWeight: "bold",
     color: "black",
     textAlign: "center",
