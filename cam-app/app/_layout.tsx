@@ -1,3 +1,8 @@
+// app/_layout.tsx
+
+"use client";
+
+import React, { useEffect, useState, createContext } from "react";
 import {
   DarkTheme,
   DefaultTheme,
@@ -6,48 +11,79 @@ import {
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect, useState, createContext } from "react";
 import "react-native-reanimated";
-import { TouchableOpacity, View, StyleSheet } from "react-native";
+import { TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 
 import { Colors } from "@/constants/Colors";
+import { AuthProvider, useAuth } from "@/lib/AuthContext";
 
-export const ThemeContext = createContext({
+export const ThemeContext = createContext<{
+  theme: "light" | "dark";
+  toggleTheme: () => void;
+}>({
   theme: "light",
   toggleTheme: () => {},
 });
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
+// Prevent the splash screen from auto-hiding until fonts load
 SplashScreen.preventAutoHideAsync();
 
+function RootStack() {
+  const { session } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!session) {
+      router.replace("/signin");
+    }
+  }, [session]);
+
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      {!session ? (
+        <>
+          <Stack.Screen name="signin" />
+          <Stack.Screen name="signup" />
+        </>
+      ) : (
+        <>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="+not-found" />
+        </>
+      )}
+    </Stack>
+  );
+}
+
 export default function RootLayout() {
-  const [theme, setTheme] = useState("light");
-  const [loaded] = useFonts({
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [fontsLoaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) {
+    return null;
+  }
 
   const toggleTheme = () => {
     setTheme((prev) => (prev === "light" ? "dark" : "light"));
   };
 
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded]);
-
-  if (!loaded) {
-    return null;
-  }
-
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
       <ThemeProvider value={theme === "dark" ? DarkTheme : DefaultTheme}>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="+not-found" />
-        </Stack>
+        <AuthProvider>
+          <RootStack />
+        </AuthProvider>
+
         <TouchableOpacity
           style={[
             styles.themeToggle,
@@ -81,10 +117,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
