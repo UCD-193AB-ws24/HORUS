@@ -1,5 +1,5 @@
 import { SetStateAction, useEffect, useRef, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Modal, TextInput } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Modal, TextInput, Dimensions } from "react-native";
 import { CameraType, CameraView, useCameraPermissions } from "expo-camera";
 import { AntDesign } from "@expo/vector-icons";
 import * as Speech from "expo-speech";
@@ -23,6 +23,7 @@ export default function CameraComponent() {
   const [signSigned, onChangeSignSigned] = useState('');
   const [signTranslated, onChangeSignTranslated] = useState('');
   const [isChecked, setChecked] = useState(false);
+  const [Portrait, setPortrait] = useState(true);
   
   const cameraRef = useRef<CameraView | null>(null);
 
@@ -270,6 +271,17 @@ export default function CameraComponent() {
     setNeedHelp(false);
   }
 
+  const isPortrait = () => {
+    const dim = Dimensions.get("screen");
+    console.log(dim.height);
+    console.log(dim.width);
+    return dim.height >= dim.width;
+  }
+
+  Dimensions.addEventListener('change', () => {
+    setPortrait(isPortrait());
+  });
+
   return (
     <View style={styles.container}>
       <CameraView 
@@ -292,54 +304,106 @@ export default function CameraComponent() {
           </View>
         )}
         
-        <View style={styles.buttonContainer}>
-          
-          
-          {/* Utility buttons moved to the top row */}
-          <View style={styles.utilityButtonsGroup}>
-            <TouchableOpacity style={styles.utilityButton} onPress={undoLastWord}>
-              <Text style={styles.utilityButtonText}>Undo</Text>
-            </TouchableOpacity>
+
+        {Portrait && (
+          <View style={styles.buttonContainerPortrait}>
+
+            {/* Utility buttons moved to the top row */}
+            <View style={styles.utilityButtonsGroup}>
+              <TouchableOpacity style={styles.utilityButton} onPress={undoLastWord}>
+                <Text style={styles.utilityButtonText}>Undo</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={styles.utilityButton} onPress={clearSentence}>
+                <Text style={styles.utilityButtonText}>Clear</Text>
+              </TouchableOpacity>
+            </View>
             
-            <TouchableOpacity style={styles.utilityButton} onPress={clearSentence}>
-              <Text style={styles.utilityButtonText}>Clear</Text>
+            {!isAudioRecording ? (
+              <TouchableOpacity style={styles.button} onPress={handleAudioRecordingToggle}>
+                <Text style={styles.buttonText}>Record{"\n"}Audio</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.button} onPress={handleAudioRecordingToggle}>
+                <Text style={styles.buttonText}>Stop{"\n"}Recording</Text>
+              </TouchableOpacity>
+            )}
+            
+            {!isVideoRecording ? (
+              <TouchableOpacity
+                style={styles.button}
+                onPress={handleVideoRecordingToggle}
+              >
+                <AntDesign name="playcircleo" size={44} color="white" />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.button}
+                onPress={handleVideoRecordingToggle}
+              >
+                <AntDesign name="pausecircleo" size={44} color="white" />
+              </TouchableOpacity>
+            )}
+            
+            <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
+              <AntDesign name="retweet" size={44} color="white" />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.button} onPress={() => setNeedHelp(true)}>
+              <Text style={styles.buttonText}>Report an Error</Text>
             </TouchableOpacity>
           </View>
-          
-          {!isAudioRecording ? (
-            <TouchableOpacity style={styles.button} onPress={handleAudioRecordingToggle}>
-              <Text style={styles.buttonText}>Record{"\n"}Audio</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={styles.button} onPress={handleAudioRecordingToggle}>
-              <Text style={styles.buttonText}>Stop{"\n"}Recording</Text>
-            </TouchableOpacity>
-          )}
-          
-          {!isVideoRecording ? (
-            <TouchableOpacity
-              style={styles.button}
-              onPress={handleVideoRecordingToggle}
-            >
-              <AntDesign name="playcircleo" size={44} color="white" />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={styles.button}
-              onPress={handleVideoRecordingToggle}
-            >
-              <AntDesign name="pausecircleo" size={44} color="white" />
-            </TouchableOpacity>
-          )}
-          
-          <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
-            <AntDesign name="retweet" size={44} color="white" />
-          </TouchableOpacity>
+        )}
 
-          <TouchableOpacity style={styles.button} onPress={() => setNeedHelp(true)}>
-            <Text style={styles.buttonText}>Report an Error</Text>
-          </TouchableOpacity>
-        </View>
+        {!Portrait && (
+          <View style={styles.buttonContainerLandscape}>
+        
+            {/* Utility buttons moved to the top row */}
+            <View style={styles.utilityButtonsGroup}>
+              <TouchableOpacity style={styles.utilityButton} onPress={undoLastWord}>
+                <Text style={styles.utilityButtonText}>Undo</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={styles.utilityButton} onPress={clearSentence}>
+                <Text style={styles.utilityButtonText}>Clear</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {!isAudioRecording ? (
+              <TouchableOpacity style={styles.button} onPress={handleAudioRecordingToggle}>
+                <Text style={styles.buttonText}>Record{"\n"}Audio</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.button} onPress={handleAudioRecordingToggle}>
+                <Text style={styles.buttonText}>Stop{"\n"}Recording</Text>
+              </TouchableOpacity>
+            )}
+            
+            {!isVideoRecording ? (
+              <TouchableOpacity
+                style={styles.button}
+                onPress={handleVideoRecordingToggle}
+              >
+                <AntDesign name="playcircleo" size={44} color="white" />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.button}
+                onPress={handleVideoRecordingToggle}
+              >
+                <AntDesign name="pausecircleo" size={44} color="white" />
+              </TouchableOpacity>
+            )}
+            
+            <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
+              <AntDesign name="retweet" size={44} color="white" />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.button} onPress={() => setNeedHelp(true)}>
+              <Text style={styles.buttonText}>Report an Error</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </CameraView>
       {transcriptionUri && (
         <SpeechToText
@@ -442,13 +506,21 @@ const styles = StyleSheet.create({
     color: "white",
     fontWeight: "bold",
   },
-  buttonContainer: {
+  buttonContainerPortrait: {
     flexDirection: "row",
     backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "flex-end",
     position: "fixed",
     top: 760,
+    marginBottom: 20,
+  },
+  buttonContainerLandscape: {
+    flexDirection: "column",
+    backgroundColor: "transparent",
+    justifyContent: "center",
+    alignItems: "flex-end",
+    position: "fixed",
     marginBottom: 20,
   },
   button: {
