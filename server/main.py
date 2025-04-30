@@ -110,18 +110,30 @@ async def recognize_sign_from_video(file: UploadFile = File(...)):
         for i in range(len(gloss_info)):
             idx_to_word[gloss_info['idx'][i]] = gloss_info['word'][i]
         
-        # Load the model exactly as in the notebook
-        
         
         # Process the keypoints and run inference
         sample_amount = 10
         logits = 0
+        keypoints_batch = []
+        valid_keypoints_batch = []
         with torch.no_grad():
+            model.eval()
             for i in range(sample_amount):
                 keypoints, valid_keypoints = process_keypoints(
                     pose, 64, selected_keypoints, height=height, width=width, augment=True
                 )
-                logits = logits + model.heads['asl_citizen'](model(keypoints.unsqueeze(0), valid_keypoints.unsqueeze(0)))
+                keypoints_batch.append(keypoints)
+                valid_keypoints_batch.append(valid_keypoints)
+                
+                keypoints_batch = torch.stack(keypoints_batch)
+                valid_keypoints_batch = torch.stack(valid_keypoints_batch)
+                
+                output_logits = model.heads['asl_citizen'](
+                    model(keypoints_batch, valid_keypoints_batch)
+                )
+                
+                
+                logits = output_logits.mean(dim=0)
         
         # Get the top prediction
         idx = torch.argsort(logits, descending=True)[0].tolist()
