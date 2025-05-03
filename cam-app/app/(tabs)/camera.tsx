@@ -6,8 +6,10 @@ import * as Speech from "expo-speech";
 import { Colors } from "@/constants/Colors";
 import { Audio } from "expo-av";
 import { SpeechToText } from "@/components/SpeechToText";
-import { HOSTNAME } from "@env";
 import * as MediaLibrary from "expo-media-library";
+import SigningTimingBar from "@/components/SigningTimingBar";
+
+let HOSTNAME = "https://1502-168-150-15-95.ngrok-free.app/"
 
 export default function CameraComponent() {
   const [facing, setFacing] = useState<CameraType>("front"); // Set front camera as default for signing
@@ -20,8 +22,10 @@ export default function CameraComponent() {
   const [transcriptionUri, setTranscriptionUri] = useState<string | null>(null);
   const [sentence, setSentence] = useState<string[]>([]);
   const [videoUri, setVideoUri] = useState<string | null>(null);
+  const [recordingPhase, setRecordingPhase] = useState<'idle' | 'prepare' | 'record' | 'complete'>('idle');
   
   const cameraRef = useRef<CameraView | null>(null);
+  const recordingTimer = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     console.log("[DEBUG] Checking camera permissions...");
@@ -30,7 +34,14 @@ export default function CameraComponent() {
   // Add recognized words to our sentence
   useEffect(() => {
     if (recognizedWord && recognizedWord !== "None") {
-      setSentence(prev => [...prev, recognizedWord]);
+      // Only add the word if it's new (not already the last word in the sentence)
+      setSentence(prev => {
+        // Check if this word is already the last word in the array (to avoid duplicates)
+        if (prev.length > 0 && prev[prev.length - 1] === recognizedWord) {
+          return prev;
+        }
+        return [...prev, recognizedWord];
+      });
     }
   }, [recognizedWord]);
 
@@ -57,6 +68,20 @@ export default function CameraComponent() {
     setFacing((current) => (current === "back" ? "front" : "back"));
   }
 
+  // Handle recording phase changes
+  const handleRecordingPhaseChange = (phase: 'idle' | 'prepare' | 'record' | 'complete') => {
+    // Only update if the phase is actually changing
+    if (recordingPhase !== phase) {
+      console.log(`[DEBUG] Recording phase changed to: ${phase}`);
+      setRecordingPhase(phase);
+      
+      if (phase === 'complete') {
+        // Automatically stop recording when timing bar completes
+        stopVideoRecording();
+      }
+    }
+  };
+
   // Actually start video recording
   const startVideoRecording = async () => {
     try {
@@ -68,12 +93,12 @@ export default function CameraComponent() {
       }
       
       setIsVideoRecording(true);
+      setRecordingPhase('prepare'); // Initialize phase
       
       // Using the recordAsync method with updated options
-      // Note: quality is now set as a prop on CameraView, not in recordAsync options
       const videoRecordPromise = cameraRef.current.recordAsync({
         maxDuration: 5, // Maximum duration in seconds
-        mirror: true      // Mirror for front camera (selfie view)
+        mirror: true    // Mirror for front camera (selfie view)
       });
       
       // Set up the promise resolution
@@ -81,32 +106,15 @@ export default function CameraComponent() {
       console.log("[DEBUG] Video recording completed:", recordedVideo.uri);
       setVideoUri(recordedVideo.uri);
       
-      // Uncomment this if you want to save your recorded video to the user's camera roll
-      // const { status } = await MediaLibrary.requestPermissionsAsync();
-
-      // if (status !== "granted") {
-      //   throw new Error("permission not granted");
-      // }
-
-      // const asset = await MediaLibrary.createAssetAsync(recordedVideo.uri)
-      // let album = await MediaLibrary.getAlbumAsync("MyAppDrafts");
-
-      // if (album === null) {
-      //   album = await MediaLibrary.createAlbumAsync(
-      //     "MyAppDrafts",
-      //     asset,
-      //     false
-      //   );
-      // } else {
-      //   await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
-      // }
-
-      // Auto analyze after recording is done
+      // Always analyze after successful recording completion
+      console.log("[DEBUG] Analyzing sign language video...");
       await analyzeSignLanguageVideo(recordedVideo.uri);
       
     } catch (error) {
       console.error("[ERROR] Failed to start video recording:", error);
+    } finally {
       setIsVideoRecording(false);
+      setRecordingPhase('idle');
     }
   };
 
@@ -122,13 +130,13 @@ export default function CameraComponent() {
       
       // Use the stopRecording method to stop the video recording
       cameraRef.current.stopRecording();
-      setIsVideoRecording(false);
       
       // Note: Analysis will happen when the recording promise resolves in startVideoRecording
       
     } catch (error) {
       console.error("[ERROR] Failed to stop video recording:", error);
       setIsVideoRecording(false);
+      setRecordingPhase('idle');
     }
   };
 
@@ -178,7 +186,6 @@ export default function CameraComponent() {
       }
     } catch (error) {
       console.error("[ERROR] Error analyzing sign language video:", error);
-      // For demonstration: simulate a recognized word if server is unavailable
     }
   };
 
@@ -245,6 +252,7 @@ export default function CameraComponent() {
   // Clear the sentence
   const clearSentence = () => {
     setSentence([]);
+    setRecognizedWord(null);
   };
   
   // Remove the last word from the sentence
@@ -263,13 +271,13 @@ export default function CameraComponent() {
         mode="video"
         videoQuality="720p"
       >
-        
-        {isVideoRecording && (
-          <View style={styles.recordingIndicator}>
-            <View style={styles.recordingDot} />
-            <Text style={styles.recordingText}>Recording...</Text>
-          </View>
-        )}
+        {/* Signing Timing Bar */}
+        <SigningTimingBar 
+          isRecording={isVideoRecording}
+          totalDuration={5000} // 5 seconds total
+          preparationTime={1000} // 1 second preparation time
+          onRecordingPhaseChange={handleRecordingPhaseChange}
+        />
         
         <View style={styles.buttonContainer}>
           <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>

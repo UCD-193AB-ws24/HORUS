@@ -70,7 +70,7 @@ model = SLR(
 #     bias=True
 # )
 
-model = torch.compile(model)
+model = torch.compile(model, backend="eager")
 model.load_state_dict(torch.load('./models/big_model.pth', map_location=torch.device('cpu')))
 model.eval()
 
@@ -111,33 +111,47 @@ async def recognize_sign_from_video(file: UploadFile = File(...)):
             idx_to_word[gloss_info['idx'][i]] = gloss_info['word'][i]
         
         
-        # Process the keypoints and run inference
+            # Process the keypoints and run inference
         sample_amount = 10
-        logits = 0
-        keypoints_batch = []
-        valid_keypoints_batch = []
         with torch.no_grad():
             model.eval()
+            
+            # Simple approach - collect individual samples
+            keypoints_list = []
+            valid_keypoints_list = []
+            
             for i in range(sample_amount):
-                keypoints, valid_keypoints = process_keypoints(
+                # Get a single sample
+                single_keypoints, single_valid_keypoints = process_keypoints(
                     pose, 64, selected_keypoints, height=height, width=width, augment=True
                 )
-                keypoints_batch.append(keypoints)
-                valid_keypoints_batch.append(valid_keypoints)
                 
-                keypoints_batch = torch.stack(keypoints_batch)
-                valid_keypoints_batch = torch.stack(valid_keypoints_batch)
-                
-                output_logits = model.heads['asl_citizen'](
-                    model(keypoints_batch, valid_keypoints_batch)
-                )
-                
-                
-                logits = output_logits.mean(dim=0)
+                # Add to list (not using subscript operations)
+                keypoints_list.append(single_keypoints)
+                valid_keypoints_list.append(single_valid_keypoints)
+            
+            # Stack when done
+            keypoints_batch = torch.stack(keypoints_list)
+            valid_keypoints_batch = torch.stack(valid_keypoints_list)
+            
+            # Process batch
+            output_logits = model.heads['asl_citizen'](
+                model(keypoints_batch, valid_keypoints_batch)
+            )
+            
+            # Average logits
+            logits = output_logits.mean(dim=0)
         
         # Get the top prediction
         idx = torch.argsort(logits, descending=True)[0].tolist()
-        top_word = idx_to_word[idx[0]]  # Extract only the first index as requested
+        print(idx)
+        
+        if isinstance(idx, int):
+            # If it's already an integer, use it directly
+            top_word = idx_to_word[idx]
+        else:
+            # If it's a list, take the first element
+            top_word = idx_to_word[idx[0]]
         
         return {"recognized_word": top_word}
     
@@ -159,25 +173,28 @@ async def test_sign_recognition(video_filename: str, request: Request):
     if not os.path.exists(video_path):
         raise HTTPException(status_code=404, detail=f"Video file {video_filename} not found in test_videos directory")
     
-    # Read the video file
-    with open(video_path, "rb") as video_file:
-        file_content = video_file.read()
-    
-    # Create a multipart form with the file
-    form_data = aiohttp.FormData()
-    form_data.add_field(
-        name="file",
-        value=file_content,
-        filename=video_filename,
-        content_type="video/mp4"
-    )
-    
     # Create a client and make request to our own endpoint
+    host = request.headers.get('host')
+    url = f"http://{host}/recognize-sign-from-video/"
+    
+    # Use aiohttp for async requests instead of synchronous requests
     async with aiohttp.ClientSession() as session:
-        url = f"http://{request.headers.get('host')}/recognize-sign-from-video/"
-        async with session.post(url, data=form_data) as response:
-            result = await response.json()
-            return result
+        with open(video_path, "rb") as video_file:
+            data = aiohttp.FormData()
+            data.add_field('file', 
+                           video_file, 
+                           filename=video_filename,
+                           content_type='video/mp4')
+            
+            async with session.post(url, data=data) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    error_text = await response.text()
+                    raise HTTPException(
+                        status_code=response.status, 
+                        detail=f"Error from recognition endpoint: {error_text}"
+                    )
 
 @app.post("/recognize-gesture/")
 async def recognize_gesture(file: UploadFile = File(...)):
@@ -308,6 +325,7 @@ if __name__ == "__main__":
         "main:app",  # Replace with your actual module:app
         host="127.0.0.1",  # Listen on all interfaces
         port=8001,
+        reload =True,
     )
 
         #     ssl_keyfile="./certs/key.pem",

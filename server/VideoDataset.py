@@ -112,7 +112,8 @@ def sample_indices(length, target_length, augment=False):
 def process_keypoints(keypoints, target_length, selected_keypoints, augment=False, height=480, width=640, flipped_keypoints=None):
     
     indices = sample_indices(len(keypoints), target_length, augment=augment)
-    keypoints = torch.tensor(keypoints[indices])
+    keypoints = keypoints[indices].clone().detach()
+    #keypoints = torch.tensor(keypoints[indices])
 
     valid_keypoints = keypoints != -1
     valid_keypoints = torch.all(valid_keypoints == 1, dim=-1)
