@@ -1,5 +1,5 @@
 import { SetStateAction, useEffect, useRef, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Modal, TextInput, Dimensions } from "react-native";
 import { CameraType, CameraView, useCameraPermissions } from "expo-camera";
 import { AntDesign } from "@expo/vector-icons";
 import * as Speech from "expo-speech";
@@ -10,6 +10,7 @@ import * as MediaLibrary from "expo-media-library";
 import SigningTimingBar from "@/components/SigningTimingBar";
 
 let HOSTNAME = "https://1502-168-150-15-95.ngrok-free.app/"
+import Checkbox from 'expo-checkbox';
 
 export default function CameraComponent() {
   const [facing, setFacing] = useState<CameraType>("front"); // Set front camera as default for signing
@@ -23,6 +24,11 @@ export default function CameraComponent() {
   const [sentence, setSentence] = useState<string[]>([]);
   const [videoUri, setVideoUri] = useState<string | null>(null);
   const [recordingPhase, setRecordingPhase] = useState<'idle' | 'prepare' | 'record' | 'complete'>('idle');
+  const [needHelp, setNeedHelp] = useState(false);
+  const [signSigned, onChangeSignSigned] = useState('');
+  const [signTranslated, onChangeSignTranslated] = useState('');
+  const [isChecked, setChecked] = useState(false);
+  const [Portrait, setPortrait] = useState(true);
   
   const cameraRef = useRef<CameraView | null>(null);
   const recordingTimer = useRef<NodeJS.Timeout | null>(null);
@@ -53,12 +59,15 @@ export default function CameraComponent() {
     console.log("[DEBUG] Camera permissions not granted");
     return (
       <View style={styles.container}>
-        <Text style={{ textAlign: "center" }}>
+        <Text style={{ fontSize: 22, textAlign: "center" }}>
           We need your permission to show the camera
         </Text>
-        <TouchableOpacity onPress={requestPermission} style={styles.button}>
-          <Text style={styles.text}>Grant Permission</Text>
-        </TouchableOpacity>
+        <Text>{"\n"}</Text>
+        <View style={styles.permissionsButtonContainer}>
+          <TouchableOpacity onPress={requestPermission} style={styles.permissionsButton}>
+            <Text style={styles.text}>Grant Permission</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -262,6 +271,46 @@ export default function CameraComponent() {
     }
   };
 
+  const sendFormToServer = async () => {
+    try {
+        let responseFetch = await fetch('http://127.0.0.1:8000/send_help_form/', {
+            method: 'POST',
+            body: JSON.stringify({"signed": signSigned, "translated": signTranslated, "video": isChecked}),
+            headers: {
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+            },
+        });
+        if (!responseFetch.ok) {
+            const errorText = await responseFetch.text();
+            console.error('[ERROR] Server response:', errorText);
+            throw new Error(errorText);
+        }
+    } catch (error) {
+        console.error('[ERROR] Error sending form:', error);
+    }
+    onChangeSignSigned('');
+    onChangeSignTranslated('');
+    setChecked(false)
+    setNeedHelp(false);
+  };  
+
+  const exitHelpPage = () => {
+    onChangeSignSigned('');
+    onChangeSignTranslated('');
+    setChecked(false)
+    setNeedHelp(false);
+  }
+
+  const isPortrait = () => {
+    const dim = Dimensions.get("screen");
+    return dim.height >= dim.width;
+  }
+
+  Dimensions.addEventListener('change', () => {
+    setPortrait(isPortrait());
+  });
+
   return (
     <View style={styles.container}>
       <CameraView 
@@ -271,6 +320,127 @@ export default function CameraComponent() {
         mode="video"
         videoQuality="720p"
       >
+        {recognizedWord && (
+          <View style={styles.overlay}>
+            <Text style={styles.gestureText}>Sign: {recognizedWord}</Text>
+          </View>
+        )}
+        
+        {isVideoRecording && Portrait && (
+          <View style={styles.recordingIndicator}>
+            <View style={styles.recordingDot} />
+            <Text style={styles.recordingText}>Recording...</Text>
+          </View>
+        )}
+
+        {isVideoRecording && !Portrait && (
+          <View style={styles.recordingIndicatorLandscape}>
+            <View style={styles.recordingDot} />
+            <Text style={styles.recordingText}>Recording...</Text>
+          </View>
+        )}
+        
+
+        {Portrait && (
+
+          <View style={styles.buttonContainerPortrait}>
+
+            {/* Utility buttons moved to the top row */}
+            <View style={styles.utilityButtonsGroup}>
+              <TouchableOpacity style={styles.utilityButton} onPress={undoLastWord}>
+                <Text style={styles.utilityButtonText}>Undo</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={styles.utilityButton} onPress={clearSentence}>
+                <Text style={styles.utilityButtonText}>Clear</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {!isAudioRecording ? (
+              <TouchableOpacity style={styles.button} onPress={handleAudioRecordingToggle}>
+                <Text style={styles.buttonText}>Record{"\n"}Audio</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.button} onPress={handleAudioRecordingToggle}>
+                <Text style={styles.buttonText}>Stop{"\n"}Recording</Text>
+              </TouchableOpacity>
+            )}
+            
+            {!isVideoRecording ? (
+              <TouchableOpacity
+                style={styles.button}
+                onPress={handleVideoRecordingToggle}
+              >
+                <AntDesign name="playcircleo" size={44} color="white" />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.button}
+                onPress={handleVideoRecordingToggle}
+              >
+                <AntDesign name="pausecircleo" size={44} color="white" />
+              </TouchableOpacity>
+            )}
+            
+            <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
+              <AntDesign name="retweet" size={44} color="white" />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.button} onPress={() => setNeedHelp(true)}>
+              <Text style={styles.buttonText}>Report an Error</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {!Portrait && (
+          <View style={styles.buttonContainerLandscape}>
+        
+            {/* Utility buttons moved to the top row */}
+            <View style={styles.utilityButtonsGroup}>
+              <TouchableOpacity style={styles.utilityButton} onPress={undoLastWord}>
+                <Text style={styles.utilityButtonText}>Undo</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={styles.utilityButton} onPress={clearSentence}>
+                <Text style={styles.utilityButtonText}>Clear</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {!isAudioRecording ? (
+              <TouchableOpacity style={styles.buttonLandscape} onPress={handleAudioRecordingToggle}>
+                <Text style={styles.buttonText}>Record{"\n"}Audio</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.buttonLandscape} onPress={handleAudioRecordingToggle}>
+                <Text style={styles.buttonText}>Stop{"\n"}Recording</Text>
+              </TouchableOpacity>
+            )}
+            
+            {!isVideoRecording ? (
+              <TouchableOpacity
+                style={styles.buttonLandscape}
+                onPress={handleVideoRecordingToggle}
+              >
+                <AntDesign name="playcircleo" size={44} color="white" />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.buttonLandscape}
+                onPress={handleVideoRecordingToggle}
+              >
+                <AntDesign name="pausecircleo" size={44} color="white" />
+              </TouchableOpacity>
+            )}
+            
+            <TouchableOpacity style={styles.buttonLandscape} onPress={toggleCameraFacing}>
+              <AntDesign name="retweet" size={44} color="white" />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.buttonLandscape} onPress={() => setNeedHelp(true)}>
+              <Text style={styles.buttonText}>Report an Error</Text>
+            </TouchableOpacity>
+          </View>
+        )}
         {/* Signing Timing Bar */}
         <SigningTimingBar 
           isRecording={isVideoRecording}
@@ -322,7 +492,6 @@ export default function CameraComponent() {
           )}
         </View>
       </CameraView>
-
       {transcriptionUri && (
         <SpeechToText
           audioUri={transcriptionUri}
@@ -350,6 +519,65 @@ export default function CameraComponent() {
           </Text>
         </View>
       )}
+
+      {Portrait && (
+        <Modal animationType="slide" transparent={true} visible={needHelp} supportedOrientations={['portrait', 'landscape']}>
+          <View style={styles.centeredView}>
+            <View style={styles.modalView}>
+              <Text style={styles.modalText}>If you would like to report a wrong translation please fill out the boxes below:</Text>
+              <Text style={styles.modalText}>{"\n"}What sign did you sign?</Text>
+              <TextInput style={styles.input} onChangeText={onChangeSignSigned} value={signSigned}/>
+              <Text style={styles.modalText}>What sign was translated?</Text>
+              <TextInput style={styles.input} onChangeText={onChangeSignTranslated} value={signTranslated}/>
+              <Text style={styles.modalText}>{"\n"}Would you like to include the video of you signing?</Text>
+              <Checkbox
+                style={styles.checkbox}
+                value={isChecked}
+                onValueChange={setChecked}
+                color={isChecked ? '#4630EB' : undefined}
+              />
+            </View>
+            <View style={styles.modalButton}>
+              <TouchableOpacity style={styles.button} onPress={exitHelpPage}>
+                <Text style={styles.buttonText}>Exit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.button} onPress={sendFormToServer}>
+                <Text style={styles.buttonText}>Submit</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {!Portrait && (
+        <Modal animationType="slide" transparent={true} visible={needHelp} supportedOrientations={['portrait', 'landscape']}>
+          <View style={styles.centeredView}>
+            <View style={styles.modalView}>
+              <Text style={styles.modalTextLandscape}>If you would like to report a wrong translation please fill out the boxes below:</Text>
+              <Text style={styles.modalTextLandscape}>{"\n"}What sign did you sign?</Text>
+              <TextInput style={styles.input} onChangeText={onChangeSignSigned} value={signSigned}/>
+              <Text style={styles.modalTextLandscape}>What sign was translated?</Text>
+              <TextInput style={styles.input} onChangeText={onChangeSignTranslated} value={signTranslated}/>
+              <Text style={styles.modalTextLandscape}>{"\n"}Would you like to include the video of you signing?</Text>
+              <Checkbox
+                style={styles.checkbox}
+                value={isChecked}
+                onValueChange={setChecked}
+                color={isChecked ? '#4630EB' : undefined}
+              />
+            </View>
+            <View style={styles.modalButton}>
+              <TouchableOpacity style={styles.button} onPress={exitHelpPage}>
+                <Text style={styles.buttonText}>Exit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.button} onPress={sendFormToServer}>
+                <Text style={styles.buttonText}>Submit</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+      
     </View>
   );
 }
@@ -386,6 +614,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 15,
   },
+  recordingIndicatorLandscape: {
+    position: "absolute",
+    top: 20,
+    left: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(200, 0, 0, 0.5)",
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 15,
+  },
   recordingDot: {
     width: 12,
     height: 12,
@@ -397,15 +636,59 @@ const styles = StyleSheet.create({
     color: "white",
     fontWeight: "bold",
   },
-  buttonContainer: {
+  buttonContainerPortrait: {
     flexDirection: "row",
     backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "flex-end",
+    position: "fixed",
+    top: 760,
     marginBottom: 20,
   },
+  buttonContainerLandscape: {
+    display: "flex",
+    flexDirection: "column",
+    backgroundColor: "transparent",
+    justifyContent: "center",
+    alignItems: "flex-end",
+    position: "fixed",
+    marginBottom: 20,
+    marginTop: 25,
+  },
   button: {
-    width: 100,
+    width: 75,
+    height: 80,
+    marginHorizontal: 5,
+    backgroundColor: "rgba(40, 40, 40, 0.8)",
+    borderRadius: 40,
+    borderWidth: 2,
+    borderColor: Colors.light.tint,
+    shadowColor: Colors.light.tint,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  buttonLandscape: {
+    width: 75,
+    height: 65,
+    marginHorizontal: 5,
+    backgroundColor: "rgba(40, 40, 40, 0.8)",
+    borderRadius: 40,
+    borderWidth: 2,
+    borderColor: Colors.light.tint,
+    shadowColor: Colors.light.tint,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  permissionsButton: {
+    width: 120,
     height: 80,
     marginHorizontal: 5,
     backgroundColor: "rgba(40, 40, 40, 0.8)",
@@ -486,4 +769,62 @@ const styles = StyleSheet.create({
     color: "white",
     textAlign: "center",
   },
+  centeredView: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalView: {
+    margin: 20,
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 35,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "black",
+    textAlign: "center",
+  },
+  modalTextLandscape: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "black",
+    textAlign: "center",
+  },
+  input: {
+    height: 40,
+    width: 75,
+    margin: 12,
+    borderWidth: 1,
+    padding: 10,
+  },
+  modalButton: {
+    flexDirection: "row",
+    backgroundColor: "transparent",
+    justifyContent: "center",
+    alignItems: "flex-end",
+    marginBottom: 20,
+  },
+  checkbox: {
+    height: 20,
+    width: 20,
+    margin: 8,
+  },
+  permissionsButtonContainer: {
+    flexDirection: "row",
+    backgroundColor: "transparent",
+    justifyContent: "center",
+    alignItems: "flex-end",
+    marginBottom: 20,
+  }
 });
