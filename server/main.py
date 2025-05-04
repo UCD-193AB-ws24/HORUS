@@ -70,11 +70,15 @@ model = SLR(
 #     bias=True
 # )
 
-model = torch.compile(model, backend="eager")
+model = torch.compile(model)
 model.load_state_dict(torch.load('./models/big_model.pth', map_location=torch.device('cpu')))
 model.eval()
 
 gloss_info = pd.read_csv('./gloss.csv')
+idx_to_word = {}
+for i in range(len(gloss_info)):
+    idx_to_word[gloss_info['idx'][i]] = gloss_info['word'][i]
+           
 
 @app.post("/recognize-sign-from-video/")
 async def recognize_sign_from_video(file: UploadFile = File(...)):
@@ -104,15 +108,9 @@ async def recognize_sign_from_video(file: UploadFile = File(...)):
         selected_keypoints = list(range(42)) 
         selected_keypoints = selected_keypoints + [x + 42 for x in ([291, 267, 37, 61, 84, 314, 310, 13, 80, 14] + [152])]
         selected_keypoints = selected_keypoints + [x + 520 for x in ([2, 5, 7, 8, 11, 12, 13, 14, 15, 16])]
-        
-        # Load the gloss mapping
-        idx_to_word = {}
-        for i in range(len(gloss_info)):
-            idx_to_word[gloss_info['idx'][i]] = gloss_info['word'][i]
-        
-        
-            # Process the keypoints and run inference
-        sample_amount = 10
+            
+        # Process the keypoints and run inference
+        sample_amount = 8
         with torch.no_grad():
             model.eval()
             
@@ -141,7 +139,7 @@ async def recognize_sign_from_video(file: UploadFile = File(...)):
             
             # Average logits
             logits = output_logits.mean(dim=0)
-        
+                
         # Get the top prediction
         idx = torch.argsort(logits, descending=True)[0].tolist()
         print(idx)
