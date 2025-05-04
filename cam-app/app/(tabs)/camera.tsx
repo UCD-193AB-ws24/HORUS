@@ -6,10 +6,9 @@ import * as Speech from "expo-speech";
 import { Colors } from "@/constants/Colors";
 import { Audio } from "expo-av";
 import { SpeechToText } from "@/components/SpeechToText";
-import * as MediaLibrary from "expo-media-library";
 import SigningTimingBar from "@/components/SigningTimingBar";
 
-let HOSTNAME = "https://1502-168-150-15-95.ngrok-free.app/"
+let HOSTNAME = "https://60b0-76-78-246-154.ngrok-free.app/"
 import Checkbox from 'expo-checkbox';
 
 export default function CameraComponent() {
@@ -320,6 +319,15 @@ export default function CameraComponent() {
         mode="video"
         videoQuality="720p"
       >
+
+        {/* Signing Timing Bar */}
+        <SigningTimingBar 
+          isRecording={isVideoRecording}
+          totalDuration={5000} // 5 seconds total
+          preparationTime={1000} // 1 second preparation time
+          onRecordingPhaseChange={handleRecordingPhaseChange}
+        />
+        
         {recognizedWord && (
           <View style={styles.overlay}>
             <Text style={styles.gestureText}>Sign: {recognizedWord}</Text>
@@ -441,56 +449,6 @@ export default function CameraComponent() {
             </TouchableOpacity>
           </View>
         )}
-        {/* Signing Timing Bar */}
-        <SigningTimingBar 
-          isRecording={isVideoRecording}
-          totalDuration={5000} // 5 seconds total
-          preparationTime={1000} // 1 second preparation time
-          onRecordingPhaseChange={handleRecordingPhaseChange}
-        />
-        
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
-            <AntDesign name="retweet" size={44} color="white" />
-          </TouchableOpacity>
-          
-          {!isVideoRecording ? (
-            <TouchableOpacity
-              style={styles.button}
-              onPress={handleVideoRecordingToggle}
-            >
-              <AntDesign name="playcircleo" size={44} color="white" />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={styles.button}
-              onPress={handleVideoRecordingToggle}
-            >
-              <AntDesign name="pausecircleo" size={44} color="white" />
-            </TouchableOpacity>
-          )}
-          
-          {/* Utility buttons moved to the top row */}
-          <View style={styles.utilityButtonsGroup}>
-            <TouchableOpacity style={styles.utilityButton} onPress={undoLastWord}>
-              <Text style={styles.utilityButtonText}>Undo</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.utilityButton} onPress={clearSentence}>
-              <Text style={styles.utilityButtonText}>Clear</Text>
-            </TouchableOpacity>
-          </View>
-          
-          {!isAudioRecording ? (
-            <TouchableOpacity style={styles.button} onPress={handleAudioRecordingToggle}>
-              <Text style={styles.buttonText}>Record{"\n"}Audio</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={styles.button} onPress={handleAudioRecordingToggle}>
-              <Text style={styles.buttonText}>Stop{"\n"}Recording</Text>
-            </TouchableOpacity>
-          )}
-        </View>
       </CameraView>
       {transcriptionUri && (
         <SpeechToText
@@ -751,7 +709,7 @@ const styles = StyleSheet.create({
   },
   sentenceContainer: {
     position: "absolute",
-    bottom: 0,
+    bottom: 100,
     left: 0,
     right: 0,
     backgroundColor: "rgba(0, 0, 0, 0.7)",
