@@ -64,14 +64,22 @@ def augment_framedrops(keypoints, valid_keypoints):
 
     for t in range(T):
         for start, end in [(0, 42), (42, 520), (520, 553)]:
-            if torch.rand(1, device=device).item() < 0.15:
+            if torch.rand(1, device=device).item() < 0.10:
                 valid_keypoints[t, start:end] = 0
+
+    for start, end in [(520, 553)]:
+        if torch.rand(1, device=device).item() < 0.10:
+            valid_keypoints[:, start:end] = 0
+
+    for start, end in [(42, 520)]:
+        if torch.rand(1, device=device).item() < 0.5:
+            valid_keypoints[:, start:end] = 0
 
     return keypoints, valid_keypoints
 
     
 
-def augment_crop(keypoints, width, height, max_shift=0.2, crop_size_variation=0.2):
+def augment_crop(keypoints, width, height, max_shift=0.3, crop_size_variation=0.3):
     crop_w = int(width * (1 - random.uniform(0, crop_size_variation)))
     crop_h = int(height * (1 - random.uniform(0, crop_size_variation)))
 
@@ -92,7 +100,7 @@ def sample_indices(length, target_length, augment=False):
     if length > target_length:
         if augment == True:
             start = random.randint(0, length - target_length)
-            indices = torch.linspace(start, start + target_length + random.randint(-10, 10), target_length).int()
+            indices = torch.linspace(start, start + target_length + random.randint(-15, 15), target_length).int()
         else:
             start = length//2 - target_length//2
             indices = torch.tensor(list(range(start, start + target_length)))
@@ -100,7 +108,7 @@ def sample_indices(length, target_length, augment=False):
         indices = torch.clamp(indices, 0, length - 1)
     else:
         indices = torch.linspace(0, length - 1, target_length).int()
-        shift = random.randint(-5, 5)
+        shift = random.randint(-10, 10)
 
         if augment == True:
             indices = indices + shift
@@ -112,8 +120,7 @@ def sample_indices(length, target_length, augment=False):
 def process_keypoints(keypoints, target_length, selected_keypoints, augment=False, height=480, width=640, flipped_keypoints=None):
     
     indices = sample_indices(len(keypoints), target_length, augment=augment)
-    keypoints = keypoints[indices].clone().detach()
-    #keypoints = torch.tensor(keypoints[indices])
+    keypoints = torch.tensor(keypoints[indices])
 
     valid_keypoints = keypoints != -1
     valid_keypoints = torch.all(valid_keypoints == 1, dim=-1)

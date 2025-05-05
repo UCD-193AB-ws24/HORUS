@@ -1,9 +1,12 @@
+from functools import lru_cache
 import os
 import tempfile
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 import cv2
-import numpy as np
+import numpy as np 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'   # need this to supress the mp errors
+
 import mediapipe as mp
 import time
 import pyaudio
@@ -78,7 +81,18 @@ gloss_info = pd.read_csv('./gloss.csv')
 idx_to_word = {}
 for i in range(len(gloss_info)):
     idx_to_word[gloss_info['idx'][i]] = gloss_info['word'][i]
-           
+
+@lru_cache(maxsize=1)
+def get_selected_keypoints():
+    selected_keypoints = list(range(42)) 
+    selected_keypoints = selected_keypoints + [x + 42 for x in ([291, 267, 37, 61, 84, 314, 310, 13, 80, 14] + [152])]
+    selected_keypoints = selected_keypoints + [x + 520 for x in ([2, 5, 7, 8, 11, 12, 13, 14, 15, 16])]
+    return selected_keypoints
+
+@lru_cache(maxsize=1)
+def get_keypoint_extractor():
+    return KeypointExtractor()
+
 
 @app.post("/recognize-sign-from-video/")
 async def recognize_sign_from_video(file: UploadFile = File(...)):
@@ -100,49 +114,27 @@ async def recognize_sign_from_video(file: UploadFile = File(...)):
         video = video.permute(0, 3, 1, 2)/255
         
         # Extract keypoints using MediaPipe
-        keypoint_extractor = KeypointExtractor()
+        keypoint_extractor = get_keypoint_extractor()
         pose = keypoint_extractor.extract(video)
         height, width = video.shape[-2], video.shape[-1]
         
         # Define the selected keypoints (same as in run_model.ipynb)
-        selected_keypoints = list(range(42)) 
-        selected_keypoints = selected_keypoints + [x + 42 for x in ([291, 267, 37, 61, 84, 314, 310, 13, 80, 14] + [152])]
-        selected_keypoints = selected_keypoints + [x + 520 for x in ([2, 5, 7, 8, 11, 12, 13, 14, 15, 16])]
-            
+        selected_keypoints  = get_selected_keypoints()  
+
         # Process the keypoints and run inference
-        sample_amount = 8
+        sample_amount = 20 # Run the model 20 times
+
+        logits = 0
         with torch.no_grad():
             model.eval()
-            
-            # Simple approach - collect individual samples
-            keypoints_list = []
-            valid_keypoints_list = []
-            
             for i in range(sample_amount):
-                # Get a single sample
-                single_keypoints, single_valid_keypoints = process_keypoints(
-                    pose, 64, selected_keypoints, height=height, width=width, augment=True
-                )
-                
-                # Add to list (not using subscript operations)
-                keypoints_list.append(single_keypoints)
-                valid_keypoints_list.append(single_valid_keypoints)
-            
-            # Stack when done
-            keypoints_batch = torch.stack(keypoints_list)
-            valid_keypoints_batch = torch.stack(valid_keypoints_list)
-            
-            # Process batch
-            output_logits = model.heads['asl_citizen'](
-                model(keypoints_batch, valid_keypoints_batch)
-            )
-            
-            # Average logits
-            logits = output_logits.mean(dim=0)
+                keypoints, valid_keypoints = process_keypoints(pose, 64, selected_keypoints, height=height, width=width, augment=True)
+                keypoints[:,:, 0] = keypoints[:,:, 0]
+                logits = logits + model.heads['asl_citizen'](model(keypoints.unsqueeze(0), valid_keypoints.unsqueeze(0)))
+
                 
         # Get the top prediction
         idx = torch.argsort(logits, descending=True)[0].tolist()
-        print(idx)
         
         if isinstance(idx, int):
             # If it's already an integer, use it directly
@@ -323,7 +315,6 @@ if __name__ == "__main__":
         "main:app",  # Replace with your actual module:app
         host="127.0.0.1",  # Listen on all interfaces
         port=8001,
-        reload =True,
     )
 
         #     ssl_keyfile="./certs/key.pem",
