@@ -122,7 +122,7 @@ async def recognize_sign_from_video(file: UploadFile = File(...)):
         selected_keypoints  = get_selected_keypoints()  
 
         # Process the keypoints and run inference
-        sample_amount = 20 # Run the model 20 times
+        sample_amount = 12 # Run the model 8 times
 
         logits = 0
         with torch.no_grad():
