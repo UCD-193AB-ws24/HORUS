@@ -5,7 +5,7 @@ from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 import cv2
 import numpy as np 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'   # need this to supress the mp errors
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'   # need this to suppress the mp errors
 
 import mediapipe as mp
 import time
@@ -61,18 +61,6 @@ model = SLR(
     bias=True
 )
 
-# for small model:
-# model = SLR(
-#     n_embd=12*64, 
-#     n_cls_dict={'asl_citizen':2305, 'lsfb': 4657, 'wlasl':2000, 'autsl':226, 'rsl':1001},
-#     n_head=12, 
-#     n_layer=4,
-#     n_keypoints=63,
-#     dropout=0.2, 
-#     max_len=64,
-#     bias=True
-# )
-
 model = torch.compile(model)
 model.load_state_dict(torch.load('./models/big_model.pth', map_location=torch.device('cpu')))
 model.eval()
@@ -115,24 +103,24 @@ async def recognize_sign_from_video(file: UploadFile = File(...)):
         
         # Extract keypoints using MediaPipe
         keypoint_extractor = get_keypoint_extractor()
-        pose = keypoint_extractor.extract(video)
+        
+        # Use the faster extract_fast method
+        pose = keypoint_extractor.extract_fast(video)
         height, width = video.shape[-2], video.shape[-1]
         
         # Define the selected keypoints (same as in run_model.ipynb)
-        selected_keypoints  = get_selected_keypoints()  
+        selected_keypoints = get_selected_keypoints()  
 
-        # Process the keypoints and run inference
-        sample_amount = 12 # Run the model 8 times
-
+        # Reduce the number of samples for faster processing
+        sample_amount = 8  # Reduced from 16 for speed
+        
         logits = 0
         with torch.no_grad():
             model.eval()
             for i in range(sample_amount):
                 keypoints, valid_keypoints = process_keypoints(pose, 64, selected_keypoints, height=height, width=width, augment=True)
-                keypoints[:,:, 0] = keypoints[:,:, 0]
                 logits = logits + model.heads['asl_citizen'](model(keypoints.unsqueeze(0), valid_keypoints.unsqueeze(0)))
-
-                
+        
         # Get the top prediction
         idx = torch.argsort(logits, descending=True)[0].tolist()
         
@@ -229,12 +217,6 @@ async def process_audio(audio: UploadFile = File(...)):
             os.remove(temp_path)
 
     return {"recognized_text": recognized_text}
-
-# @app.post("/process_audio/")
-# async def process_audio(file: UploadFile = File(...)):
-#     # Check that we have a file
-#     contents = await file.read()
-#     return {"msg": "File received", "file_size": len(contents)}
 
 @app.get("/")
 def read_root():
