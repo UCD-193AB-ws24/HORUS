@@ -1,3 +1,4 @@
+import datetime
 from functools import lru_cache
 import os
 import tempfile
@@ -90,6 +91,18 @@ async def recognize_sign_from_video(file: UploadFile = File(...)):
     if not file:
         raise HTTPException(status_code=400, detail="No video file provided")
     
+    # Generate a unique filename with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"uploaded_video_{timestamp}.mp4"
+    
+    # Save the file in the current directory
+    file_path = os.path.join(os.getcwd(), filename)
+    
+    # Write the uploaded file to disk
+    contents = await file.read()
+    with open(file_path, "wb") as f:
+        f.write(contents)
+    
     # Save the uploaded file to a temporary location
     with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
         contents = await file.read()
@@ -135,10 +148,10 @@ async def recognize_sign_from_video(file: UploadFile = File(...)):
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        # Clean up the temporary file
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+    # finally:
+    #     # Clean up the temporary file
+    #     if os.path.exists(temp_path):
+    #         os.remove(temp_path)
 
 @app.get("/test-sign-recognition/{video_filename}")
 async def test_sign_recognition(video_filename: str, request: Request):
