@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 from functools import lru_cache
 import os
 import tempfile
@@ -92,16 +92,16 @@ async def recognize_sign_from_video(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="No video file provided")
     
     # Generate a unique filename with timestamp
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"uploaded_video_{timestamp}.mp4"
+    # timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    # filename = f"uploaded_video_{timestamp}.mp4"
     
-    # Save the file in the current directory
-    file_path = os.path.join(os.getcwd(), filename)
+    # # Save the file in the current directory
+    # file_path = os.path.join(os.getcwd(), filename)
     
-    # Write the uploaded file to disk
-    contents = await file.read()
-    with open(file_path, "wb") as f:
-        f.write(contents)
+    # # Write the uploaded file to disk
+    # contents = await file.read()
+    # with open(file_path, "wb") as f:
+    #     f.write(contents)
     
     # Save the uploaded file to a temporary location
     with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
@@ -118,7 +118,7 @@ async def recognize_sign_from_video(file: UploadFile = File(...)):
         keypoint_extractor = get_keypoint_extractor()
         
         # Use the faster extract_fast method
-        pose = keypoint_extractor.extract_fast(video)
+        pose = keypoint_extractor.extract_fast_parallel(video)
         height, width = video.shape[-2], video.shape[-1]
         
         # Define the selected keypoints (same as in run_model.ipynb)

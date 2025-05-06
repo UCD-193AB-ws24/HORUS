@@ -177,23 +177,66 @@ class KeypointExtractor:
     
     def extract_fast_parallel(self, video, fps=24):
         """
-        Parallel processing version with optimized chunking
+        Simple but effective parallel processing for keypoint extraction
         """
-        num_cores = mp_threading.cpu_count() - 1  # Leave one core free
-        chunk_size = max(4, len(video) // num_cores)
+        # Process every frame for better accuracy
+        stride = 1
+        selected_indices = list(range(0, len(video), stride))
+        video_subset = video[selected_indices]
         
-        # Split video into chunks
+        # Just use 2-4 workers maximum
+        num_workers = min(4, mp_threading.cpu_count() - 1)
+        
+        # Simple chunking - divide frames evenly among workers
+        frames_per_worker = len(video_subset) // num_workers
         chunks = []
-        for i in range(0, len(video), chunk_size):
-            chunks.append((video[i:i+chunk_size], i, fps, video.shape[2], video.shape[3]))
         
-        # Process chunks in parallel
-        with ProcessPoolExecutor(max_workers=num_cores) as executor:
-            futures = [executor.submit(self._process_chunk, chunk) for chunk in chunks]
-            chunk_results = [f.result() for f in futures]
+        for i in range(num_workers):
+            start_idx = i * frames_per_worker
+            end_idx = start_idx + frames_per_worker if i < num_workers - 1 else len(video_subset)
+            chunks.append((video_subset[start_idx:end_idx], start_idx * stride, fps, video.shape[2], video.shape[3]))
+        
+        # Use ThreadPoolExecutor - more efficient than ProcessPoolExecutor for this task
+        with ThreadPoolExecutor(max_workers=num_workers) as executor:
+            chunk_results = list(executor.map(self._process_chunk, chunks))
         
         # Combine results
-        return torch.cat(chunk_results, dim=0)
+        result = torch.cat(chunk_results, dim=0)
+        
+        # If we used stride > 1, interpolate the missing frames
+        if stride > 1:
+            return self._interpolate_frames(result, len(video), stride)
+        
+        return result
+
+    def _interpolate_frames(self, keypoints, total_frames, stride):
+        """
+        Simple linear interpolation to fill in skipped frames
+        """
+        full_results = torch.zeros((total_frames, keypoints.shape[1], keypoints.shape[2]), dtype=torch.float32)
+        
+        # Copy existing keypoints
+        for i, idx in enumerate(range(0, total_frames, stride)):
+            if i < len(keypoints):
+                full_results[idx] = keypoints[i]
+        
+        # Linear interpolation for missing frames
+        for idx in range(total_frames):
+            if idx % stride == 0:
+                continue  # Already filled
+            
+            # Find nearest filled frames
+            prev_idx = (idx // stride) * stride
+            next_idx = min(prev_idx + stride, total_frames - 1)
+            
+            if next_idx == prev_idx:
+                full_results[idx] = full_results[prev_idx]
+            else:
+                # Weight for linear interpolation
+                weight = (idx - prev_idx) / (next_idx - prev_idx)
+                full_results[idx] = (1 - weight) * full_results[prev_idx] + weight * full_results[next_idx]
+        
+        return full_results
     
     @staticmethod
     def _process_chunk(chunk_data):
