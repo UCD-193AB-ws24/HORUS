@@ -113,7 +113,7 @@ async def recognize_sign_from_video(file: UploadFile = File(...)):
         # Read the video file into a tensor
         video = read_video(temp_path)
         video = video.permute(0, 3, 1, 2)/255
-        
+        video = torch.flip(video, dims=[-2])
         # Extract keypoints using MediaPipe
         keypoint_extractor = get_keypoint_extractor()
         
@@ -123,7 +123,6 @@ async def recognize_sign_from_video(file: UploadFile = File(...)):
         
         # Define the selected keypoints (same as in run_model.ipynb)
         selected_keypoints = get_selected_keypoints()  
-
         # Reduce the number of samples for faster processing
         sample_amount = 8  # Reduced from 16 for speed
         
@@ -202,17 +201,17 @@ async def recognize_gesture(file: UploadFile = File(...)):
     return {"gesture": detected_gesture}
 
 @app.post("/process_audio/")
-async def process_audio(audio: UploadFile = File(...)):
+async def process_audio(file: UploadFile = File(...)):
     """
     Receives an audio file and returns the transcribed text using Whisper (local).
     """
-    if not audio:
+    if not file:
         raise HTTPException(status_code=400, detail="No audio file provided")
 
     # Save to a temporary file
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
         # Read file contents
-        contents = await audio.read()
+        contents = await file.read()
         tmp.write(contents)
         temp_path = tmp.name
 

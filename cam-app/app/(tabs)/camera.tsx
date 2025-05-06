@@ -9,7 +9,7 @@ import { SpeechToText } from "@/components/SpeechToText";
 import * as MediaLibrary from "expo-media-library";
 import SigningTimingBar from "@/components/SigningTimingBar";
 
-let HOSTNAME = "https://1502-168-150-15-95.ngrok-free.app/"
+let HOSTNAME = "https://0ad8-76-78-246-161.ngrok-free.app/"
 
 export default function CameraComponent() {
   const [facing, setFacing] = useState<CameraType>("front"); // Set front camera as default for signing
@@ -98,7 +98,7 @@ export default function CameraComponent() {
       // Using the recordAsync method with updated options
       const videoRecordPromise = cameraRef.current.recordAsync({
         maxDuration: 5, // Maximum duration in seconds
-        mirror: true    // Mirror for front camera (selfie view)
+        codec: 'avc1',
       });
       
       // Set up the promise resolution
@@ -130,7 +130,7 @@ export default function CameraComponent() {
       
       // Use the stopRecording method to stop the video recording
       cameraRef.current.stopRecording();
-      
+ 
       // Note: Analysis will happen when the recording promise resolves in startVideoRecording
       
     } catch (error) {
@@ -145,7 +145,7 @@ export default function CameraComponent() {
     try {
       console.log("[DEBUG] Preparing video for upload...");
       let formData = new FormData();
-      
+     
       // In React Native, we need to append the file differently
       // No need to fetch and create a blob - directly use the uri
       formData.append("file", {
