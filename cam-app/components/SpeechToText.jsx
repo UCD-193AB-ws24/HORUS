@@ -5,17 +5,19 @@ export function SpeechToText({ audioUri, onTranscriptionComplete }) {
     async function transcribe() {
       if (audioUri) {
         try {
-          const audioResponse = await fetch(audioUri);
-          const audioData = await audioResponse.arrayBuffer();
-
-          const blob = new Blob([audioData], { type: "audio/wav" });
-
           const formData = new FormData();
-          formData.append("audio", blob, "recording.wav");
+          formData.append("file", {
+            uri: audioUri,
+            name: "recording.wav",
+            type: "audio/wav"
+          });
 
-          const response = await fetch("http://127.0.0.1:8000/process_audio/", {
+          const response = await fetch("https://0ad8-76-78-246-161.ngrok-free.app/process_audio/", {
             method: "POST",
             body: formData,
+            headers: {
+              Accept: "application/json",
+            },
           });
 
           if (!response.ok) {

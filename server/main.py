@@ -1,9 +1,13 @@
+from datetime import datetime
+from functools import lru_cache
 import os
 import tempfile
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 import cv2
-import numpy as np
+import numpy as np 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'   # need this to suppress the mp errors
+
 import mediapipe as mp
 import time
 # import pyaudio
@@ -66,18 +70,6 @@ model = SLR(
     bias=True
 )
 
-# for small model:
-# model = SLR(
-#     n_embd=12*64, 
-#     n_cls_dict={'asl_citizen':2305, 'lsfb': 4657, 'wlasl':2000, 'autsl':226, 'rsl':1001},
-#     n_head=12, 
-#     n_layer=4,
-#     n_keypoints=63,
-#     dropout=0.2, 
-#     max_len=64,
-#     bias=True
-# )
-
 model = torch.compile(model)
 model.load_state_dict(torch.load('./models/big_model.pth', map_location=torch.device('cpu')))
 model.eval()
@@ -86,7 +78,18 @@ gloss_info = pd.read_csv('./gloss.csv')
 idx_to_word = {}
 for i in range(len(gloss_info)):
     idx_to_word[gloss_info['idx'][i]] = gloss_info['word'][i]
-           
+
+@lru_cache(maxsize=1)
+def get_selected_keypoints():
+    selected_keypoints = list(range(42)) 
+    selected_keypoints = selected_keypoints + [x + 42 for x in ([291, 267, 37, 61, 84, 314, 310, 13, 80, 14] + [152])]
+    selected_keypoints = selected_keypoints + [x + 520 for x in ([2, 5, 7, 8, 11, 12, 13, 14, 15, 16])]
+    return selected_keypoints
+
+@lru_cache(maxsize=1)
+def get_keypoint_extractor():
+    return KeypointExtractor()
+
 
 @app.post("/recognize-sign-from-video/")
 async def recognize_sign_from_video(file: UploadFile = File(...)):
@@ -95,6 +98,18 @@ async def recognize_sign_from_video(file: UploadFile = File(...)):
     """
     if not file:
         raise HTTPException(status_code=400, detail="No video file provided")
+    
+    # Generate a unique filename with timestamp
+    # timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    # filename = f"uploaded_video_{timestamp}.mp4"
+    
+    # # Save the file in the current directory
+    # file_path = os.path.join(os.getcwd(), filename)
+    
+    # # Write the uploaded file to disk
+    # contents = await file.read()
+    # with open(file_path, "wb") as f:
+    #     f.write(contents)
     
     # Save the uploaded file to a temporary location
     with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
@@ -106,51 +121,28 @@ async def recognize_sign_from_video(file: UploadFile = File(...)):
         # Read the video file into a tensor
         video = read_video(temp_path)
         video = video.permute(0, 3, 1, 2)/255
-        
+        video = torch.flip(video, dims=[-2])
         # Extract keypoints using MediaPipe
-        keypoint_extractor = KeypointExtractor()
-        pose = keypoint_extractor.extract(video)
+        keypoint_extractor = get_keypoint_extractor()
+        
+        # Use the faster extract_fast method
+        pose = keypoint_extractor.extract_fast_parallel(video)
         height, width = video.shape[-2], video.shape[-1]
         
         # Define the selected keypoints (same as in run_model.ipynb)
-        selected_keypoints = list(range(42)) 
-        selected_keypoints = selected_keypoints + [x + 42 for x in ([291, 267, 37, 61, 84, 314, 310, 13, 80, 14] + [152])]
-        selected_keypoints = selected_keypoints + [x + 520 for x in ([2, 5, 7, 8, 11, 12, 13, 14, 15, 16])]
-            
-        # Process the keypoints and run inference
-        sample_amount = 8
+        selected_keypoints = get_selected_keypoints()  
+        # Reduce the number of samples for faster processing
+        sample_amount = 8  # Reduced from 16 for speed
+        
+        logits = 0
         with torch.no_grad():
             model.eval()
-            
-            # Simple approach - collect individual samples
-            keypoints_list = []
-            valid_keypoints_list = []
-            
             for i in range(sample_amount):
-                # Get a single sample
-                single_keypoints, single_valid_keypoints = process_keypoints(
-                    pose, 64, selected_keypoints, height=height, width=width, augment=True
-                )
-                
-                # Add to list (not using subscript operations)
-                keypoints_list.append(single_keypoints)
-                valid_keypoints_list.append(single_valid_keypoints)
-            
-            # Stack when done
-            keypoints_batch = torch.stack(keypoints_list)
-            valid_keypoints_batch = torch.stack(valid_keypoints_list)
-            
-            # Process batch
-            output_logits = model.heads['asl_citizen'](
-                model(keypoints_batch, valid_keypoints_batch)
-            )
-            
-            # Average logits
-            logits = output_logits.mean(dim=0)
-                
+                keypoints, valid_keypoints = process_keypoints(pose, 64, selected_keypoints, height=height, width=width, augment=True)
+                logits = logits + model.heads['asl_citizen'](model(keypoints.unsqueeze(0), valid_keypoints.unsqueeze(0)))
+        
         # Get the top prediction
         idx = torch.argsort(logits, descending=True)[0].tolist()
-        print(idx)
         
         if isinstance(idx, int):
             # If it's already an integer, use it directly
@@ -164,9 +156,9 @@ async def recognize_sign_from_video(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     # finally:
-        # # Clean up the temporary file
-        # if os.path.exists(temp_path):
-        #     os.remove(temp_path)
+    #     # Clean up the temporary file
+    #     if os.path.exists(temp_path):
+    #         os.remove(temp_path)
 
 @app.get("/test-sign-recognition/{video_filename}")
 async def test_sign_recognition(video_filename: str, request: Request):
@@ -217,17 +209,17 @@ async def recognize_gesture(file: UploadFile = File(...)):
     return {"gesture": detected_gesture}
 
 @app.post("/process_audio/")
-async def process_audio(audio: UploadFile = File(...)):
+async def process_audio(file: UploadFile = File(...)):
     """
     Receives an audio file and returns the transcribed text using Whisper (local).
     """
-    if not audio:
+    if not file:
         raise HTTPException(status_code=400, detail="No audio file provided")
 
     # Save to a temporary file
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
         # Read file contents
-        contents = await audio.read()
+        contents = await file.read()
         tmp.write(contents)
         temp_path = tmp.name
 
@@ -347,7 +339,6 @@ if __name__ == "__main__":
         "main:app",  # Replace with your actual module:app
         host="127.0.0.1",  # Listen on all interfaces
         port=8001,
-        reload =True,
     )
 
         #     ssl_keyfile="./certs/key.pem",
