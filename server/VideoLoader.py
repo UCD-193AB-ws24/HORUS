@@ -10,6 +10,7 @@ import torch
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 import multiprocessing as mp_threading
 from mediapipe.framework.formats import landmark_pb2
+import torchvision.io.read_video as rv
 
 BaseOptions = mp.tasks.BaseOptions
 FaceLandmarker = mp.tasks.vision.FaceLandmarker
@@ -51,7 +52,7 @@ pose_target_landmarks = list(range(33))
 
 def read_video(file_path):
     try:
-        video, audio, info = read_video(file_path, pts_unit='sec')
+        video, audio, info = rv(file_path, pts_unit='sec')
         return video
     except Exception as e:
         cap = cv2.VideoCapture(file_path)
