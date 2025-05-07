@@ -1,9 +1,10 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, Image, Switch } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import tw from "twrnc";
 import useAlphabetLesson from "@/hooks/useAlphabetLesson";
 import LessonCamera from "@/components/LessonCamera";
+import { useAuth } from "@/lib/AuthContext";
 
 const signImages: Record<string, number> = {
   a: require("@/assets/signs/a.png"),
@@ -46,14 +47,41 @@ const CONGRATULATORY_MESSAGES = [
 
 export default function Session() {
   const router = useRouter();
+  const { startIndex } = useLocalSearchParams<{ startIndex?: string }>();
   const { letters } = useAlphabetLesson();
-  const [index, setIndex] = useState(0);
-  const [score, setScore] = useState(0);
+  const { saveProgress, user } = useAuth();
+  const initialIndex = parseInt(startIndex || "0", 10);
+  const [index, setIndex] = useState(initialIndex);
+  const [score, setScore] = useState(initialIndex * 50);
   const [congratulatoryMessage, setCongratulatoryMessage] = useState("");
   const [showImage, setShowImage] = useState(false);
   const lock = useRef(false);
 
   const currentLetter = useMemo(() => letters[index], [letters, index]);
+
+  useEffect(() => {
+    const saveCurrentProgress = async () => {
+      if (user && index > 0) {
+        await saveProgress(index);
+      }
+    };
+
+    return () => {
+      saveCurrentProgress();
+    };
+  }, [index, saveProgress, user]);
+
+  useEffect(() => {
+    if (!user || index === 0) return;
+
+    const saveInterval = setInterval(async () => {
+      await saveProgress(index);
+    }, 10000);
+
+    return () => {
+      clearInterval(saveInterval);
+    };
+  }, [index, saveProgress, user]);
 
   const handleDetect = useCallback(
     (letter: string) => {
@@ -65,6 +93,10 @@ export default function Session() {
       setCongratulatoryMessage(CONGRATULATORY_MESSAGES[rand]);
 
       if (index === letters.length - 1) {
+        if (user) {
+          saveProgress(0);
+        }
+
         router.replace({
           pathname: "/(tabs)/learn/result",
           params: { score: String(nextScore) },
@@ -72,13 +104,19 @@ export default function Session() {
         return;
       }
 
+      const nextIndex = index + 1;
       setScore(nextScore);
-      setIndex((i) => i + 1);
+      setIndex(nextIndex);
+
+      if (user) {
+        saveProgress(nextIndex);
+      }
+
       setTimeout(() => {
         lock.current = false;
       }, 500);
     },
-    [currentLetter, index, letters.length, router, score]
+    [currentLetter, index, letters.length, router, score, saveProgress, user]
   );
 
   return (
@@ -103,7 +141,6 @@ export default function Session() {
         <View style={tw`mt-4 items-center`}>
           <Image
             source={signImages[currentLetter.toLowerCase()]}
-            // source={require("@/assets/signs/a.png")}
             style={tw`w-24 h-24 rounded-lg`}
             resizeMode="contain"
           />

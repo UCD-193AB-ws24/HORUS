@@ -7,6 +7,7 @@ import {
 } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { Session, User } from "@supabase/supabase-js";
+import { saveUserProgress, getUserProgress } from "@/lib/databaseService";
 
 type AuthContextType = {
   user: User | null;
@@ -14,6 +15,8 @@ type AuthContextType = {
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<{ error: Error | null }>;
+  saveProgress: (letterIndex: number) => Promise<{ error: Error | null }>;
+  getProgress: () => Promise<{ letterIndex: number; error: Error | null }>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -44,8 +47,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.signUp({ email, password });
   const signOut = () => supabase.auth.signOut();
 
+  const saveProgress = async (letterIndex: number) => {
+    if (!user) return { error: new Error("User not authenticated") };
+    return saveUserProgress(user.id, letterIndex);
+  };
+
+  const getProgress = async () => {
+    if (!user)
+      return { letterIndex: 0, error: new Error("User not authenticated") };
+    return getUserProgress(user.id);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, session, signIn, signUp, signOut }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        signIn,
+        signUp,
+        signOut,
+        saveProgress,
+        getProgress,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
