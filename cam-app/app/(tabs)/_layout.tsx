@@ -49,7 +49,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
+      {/* <Tabs.Screen
         name="guide"
         options={{
           title: "Guide",
@@ -66,7 +66,7 @@ export default function TabLayout() {
             />
           ),
         }}
-      />
+      /> */}
       <Tabs.Screen
         name="learn"
         options={{

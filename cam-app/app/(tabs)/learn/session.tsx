@@ -121,7 +121,8 @@ export default function Session() {
 
   return (
     <View style={tw`flex-1 bg-white dark:bg-black p-4`}>
-      <View style={tw`flex-row justify-end items-center mb-4`}>
+      <View style={tw`flex-row justify-end items-center mt-8`}>
+      {/* <View style={tw`flex-row justify-end items-center mb-4`}> */}
         <Text style={tw`text-gray-800 dark:text-gray-100 mr-2`}>
           Show image
         </Text>

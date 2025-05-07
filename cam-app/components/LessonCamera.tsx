@@ -37,18 +37,26 @@ export default function LessonCamera({ onDetect, intervalMs = 300 }: Props) {
 
         if (!photo?.uri) return;
 
-        const blob = await (await fetch(photo.uri)).blob();
+        // const blob = await (await fetch(photo.uri)).blob();
 
-        const form = new FormData();
-        form.append("file", blob, "frame.jpg");
+        let formData = new FormData();
+        // form.append("file", blob, "frame.jpg");
+        formData.append("file", {
+          uri: photo.uri,
+          name: "photo.jpg",
+          type: "iamge/jpg"
+        } as any);
 
         const res = await fetch(HOSTNAME + "recognize-gesture/", {
           method: "POST",
-          body: form,
+          body: formData,
           headers: { Accept: "application/json" },
         });
 
-        if (!res.ok) return;
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.error(errorText);
+        };
 
         const { gesture } = (await res.json()) as { gesture?: string };
         if (gesture && gesture !== "None") onDetect(gesture.toUpperCase());

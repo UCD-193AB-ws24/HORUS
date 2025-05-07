@@ -84,7 +84,7 @@ export default function RootLayout() {
           <RootStack />
         </AuthProvider>
 
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={[
             styles.themeToggle,
             {
@@ -101,7 +101,7 @@ export default function RootLayout() {
             size={24}
             color={theme === "dark" ? Colors.dark.text : Colors.light.text}
           />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </ThemeProvider>
     </ThemeContext.Provider>
   );

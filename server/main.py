@@ -198,14 +198,22 @@ async def test_sign_recognition(video_filename: str, request: Request):
 async def recognize_gesture(file: UploadFile = File(...)):
     if not file:
         raise HTTPException(status_code=400, detail="No file uploaded")
-    contents = await file.read()
-    np_arr = np.frombuffer(contents, np.uint8)
-    image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
     
-    results = recognizer.recognize(mp.Image(image_format=mp.ImageFormat.SRGB, data=image))
-    
-    detected_gesture = results.gestures[0][0].category_name if results.gestures else "None"
-    print(detected_gesture)
+    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+        contents = await file.read()
+        tmp.write(contents)
+        temp_path = tmp.name
+
+    try:
+        # contents = await file.read()
+        np_arr = np.frombuffer(contents, np.uint8)
+        image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        
+        results = recognizer.recognize(mp.Image(image_format=mp.ImageFormat.SRGB, data=image))
+        detected_gesture = results.gestures[0][0].category_name if results.gestures else "None"
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
     return {"gesture": detected_gesture}
 
 @app.post("/process_audio/")
