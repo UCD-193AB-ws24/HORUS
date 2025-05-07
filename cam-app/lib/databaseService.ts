@@ -2,9 +2,9 @@ import { supabase } from "@/lib/supabaseClient";
 
 /**
  * Saves the user's current progress in learning ASL
- * @param userId The user's ID
- * @param letterIndex The index of the current letter the user is learning
- * @returns An object with error if there was an error
+ * @param userId
+ * @param letterIndex
+ * @returns
  */
 export async function saveUserProgress(
   userId: string,
@@ -26,8 +26,8 @@ export async function saveUserProgress(
 
 /**
  * Gets the user's current progress in learning ASL
- * @param userId The user's ID
- * @returns The index of the current letter the user is learning, or 0 if not found
+ * @param userId
+ * @returns
  */
 export async function getUserProgress(
   userId: string
