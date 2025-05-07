@@ -8,7 +8,7 @@ import { Audio } from "expo-av";
 import { SpeechToText } from "@/components/SpeechToText";
 import SigningTimingBar from "@/components/SigningTimingBar";
 
-let HOSTNAME = "https://60b0-76-78-246-154.ngrok-free.app/"
+let HOSTNAME = "https://0f4e-2600-1010-b33b-f128-95dc-1556-e9d7-91c6.ngrok-free.app/"
 import Checkbox from 'expo-checkbox';
 
 export default function CameraComponent() {

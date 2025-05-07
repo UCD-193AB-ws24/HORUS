@@ -12,7 +12,7 @@ export function SpeechToText({ audioUri, onTranscriptionComplete }) {
             type: "audio/wav"
           });
 
-          const response = await fetch("https://0ad8-76-78-246-161.ngrok-free.app/process_audio/", {
+          const response = await fetch("https://133f-2600-1010-b33b-f128-95dc-1556-e9d7-91c6.ngrok-free.app/process_audio/", {
             method: "POST",
             body: formData,
             headers: {

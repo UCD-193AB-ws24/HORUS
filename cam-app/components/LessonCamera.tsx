@@ -8,7 +8,7 @@ type Props = {
 };
 
 export default function LessonCamera({ onDetect, intervalMs = 300 }: Props) {
-  const [facing] = useState<CameraType>("back");
+  const [facing] = useState<CameraType>("front");
   const [permission, requestPermission] = useCameraPermissions();
 
   const cameraRef = useRef<CameraView | null>(null);
