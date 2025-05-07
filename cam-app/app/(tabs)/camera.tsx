@@ -261,6 +261,7 @@ export default function CameraComponent() {
   const clearSentence = () => {
     setSentence([]);
     setRecognizedWord(null);
+    setRecognizedText('');
   };
   
   // Remove the last word from the sentence
@@ -328,11 +329,11 @@ export default function CameraComponent() {
           onRecordingPhaseChange={handleRecordingPhaseChange}
         />
         
-        {recognizedWord && (
+        {/* {recognizedWord && (
           <View style={styles.overlay}>
             <Text style={styles.gestureText}>Sign: {recognizedWord}</Text>
           </View>
-        )}
+        )} */}
         
         {isVideoRecording && Portrait && (
           <View style={styles.recordingIndicator}>

@@ -155,10 +155,10 @@ async def recognize_sign_from_video(file: UploadFile = File(...)):
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    # finally:
-    #     # Clean up the temporary file
-    #     if os.path.exists(temp_path):
-    #         os.remove(temp_path)
+    finally:
+        # Clean up the temporary file
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
 
 @app.get("/test-sign-recognition/{video_filename}")
 async def test_sign_recognition(video_filename: str, request: Request):

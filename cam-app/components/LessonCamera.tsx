@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { CameraView, CameraType, useCameraPermissions } from "expo-camera";
 
+
+let HOSTNAME = 'https://0f4e-2600-1010-b33b-f128-95dc-1556-e9d7-91c6.ngrok-free.app/'
+
 type Props = {
   onDetect(letter: string): void;
   intervalMs?: number;
@@ -39,7 +42,7 @@ export default function LessonCamera({ onDetect, intervalMs = 300 }: Props) {
         const form = new FormData();
         form.append("file", blob, "frame.jpg");
 
-        const res = await fetch("http://127.0.0.1:8000/recognize-gesture/", {
+        const res = await fetch(HOSTNAME + "recognize-gesture/", {
           method: "POST",
           body: form,
           headers: { Accept: "application/json" },
