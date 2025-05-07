@@ -1,16 +1,28 @@
 import os
 import tempfile
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 import cv2
 import numpy as np
 import mediapipe as mp
 import time
-import pyaudio
+# import pyaudio
 import wave
 import requests
-import time
+import aiohttp
+import pandas as pd
+import torch
+import uvicorn
 import whisper
+from VideoLoader import KeypointExtractor, read_video
+from VideoDataset import process_keypoints
+from model import SLR
+from pydantic import BaseModel
+import shutil
+import datetime
+
+import torch._dynamo
+torch._dynamo.config.suppress_errors = True
 
 app = FastAPI()
 
@@ -33,9 +45,162 @@ options = GestureRecognizerOptions(
     running_mode=VisionRunningMode.IMAGE,
 )
 
+class Item (BaseModel):
+    signed: str
+    translated: str
+    video: bool
+
 recognizer = GestureRecognizer.create_from_options(options)
 
 whisper_model = whisper.load_model("tiny")
+
+
+model = SLR(
+    n_embd=16*64, 
+    n_cls_dict={'asl_citizen':2305, 'lsfb': 4657, 'wlasl':2000, 'autsl':226, 'rsl':1001},
+    n_head=16, 
+    n_layer=6,
+    n_keypoints=63,
+    dropout=0.6, 
+    max_len=64,
+    bias=True
+)
+
+# for small model:
+# model = SLR(
+#     n_embd=12*64, 
+#     n_cls_dict={'asl_citizen':2305, 'lsfb': 4657, 'wlasl':2000, 'autsl':226, 'rsl':1001},
+#     n_head=12, 
+#     n_layer=4,
+#     n_keypoints=63,
+#     dropout=0.2, 
+#     max_len=64,
+#     bias=True
+# )
+
+model = torch.compile(model)
+model.load_state_dict(torch.load('./models/big_model.pth', map_location=torch.device('cpu')))
+model.eval()
+
+gloss_info = pd.read_csv('./gloss.csv')
+idx_to_word = {}
+for i in range(len(gloss_info)):
+    idx_to_word[gloss_info['idx'][i]] = gloss_info['word'][i]
+           
+
+@app.post("/recognize-sign-from-video/")
+async def recognize_sign_from_video(file: UploadFile = File(...)):
+    """
+    Receives an MP4 video file and returns the recognized sign language word
+    """
+    if not file:
+        raise HTTPException(status_code=400, detail="No video file provided")
+    
+    # Save the uploaded file to a temporary location
+    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
+        contents = await file.read()
+        tmp.write(contents)
+        temp_path = tmp.name
+    
+    try:
+        # Read the video file into a tensor
+        video = read_video(temp_path)
+        video = video.permute(0, 3, 1, 2)/255
+        
+        # Extract keypoints using MediaPipe
+        keypoint_extractor = KeypointExtractor()
+        pose = keypoint_extractor.extract(video)
+        height, width = video.shape[-2], video.shape[-1]
+        
+        # Define the selected keypoints (same as in run_model.ipynb)
+        selected_keypoints = list(range(42)) 
+        selected_keypoints = selected_keypoints + [x + 42 for x in ([291, 267, 37, 61, 84, 314, 310, 13, 80, 14] + [152])]
+        selected_keypoints = selected_keypoints + [x + 520 for x in ([2, 5, 7, 8, 11, 12, 13, 14, 15, 16])]
+            
+        # Process the keypoints and run inference
+        sample_amount = 8
+        with torch.no_grad():
+            model.eval()
+            
+            # Simple approach - collect individual samples
+            keypoints_list = []
+            valid_keypoints_list = []
+            
+            for i in range(sample_amount):
+                # Get a single sample
+                single_keypoints, single_valid_keypoints = process_keypoints(
+                    pose, 64, selected_keypoints, height=height, width=width, augment=True
+                )
+                
+                # Add to list (not using subscript operations)
+                keypoints_list.append(single_keypoints)
+                valid_keypoints_list.append(single_valid_keypoints)
+            
+            # Stack when done
+            keypoints_batch = torch.stack(keypoints_list)
+            valid_keypoints_batch = torch.stack(valid_keypoints_list)
+            
+            # Process batch
+            output_logits = model.heads['asl_citizen'](
+                model(keypoints_batch, valid_keypoints_batch)
+            )
+            
+            # Average logits
+            logits = output_logits.mean(dim=0)
+                
+        # Get the top prediction
+        idx = torch.argsort(logits, descending=True)[0].tolist()
+        print(idx)
+        
+        if isinstance(idx, int):
+            # If it's already an integer, use it directly
+            top_word = idx_to_word[idx]
+        else:
+            # If it's a list, take the first element
+            top_word = idx_to_word[idx[0]]
+        
+        return {"recognized_word": top_word}
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    # finally:
+        # # Clean up the temporary file
+        # if os.path.exists(temp_path):
+        #     os.remove(temp_path)
+
+@app.get("/test-sign-recognition/{video_filename}")
+async def test_sign_recognition(video_filename: str, request: Request):
+    """
+    Test route that reads an MP4 file from the 'test_videos' directory 
+    and sends it to the recognize-sign-from-video endpoint
+    """
+    video_path = os.path.join("test_videos", video_filename)
+    
+    if not os.path.exists(video_path):
+        raise HTTPException(status_code=404, detail=f"Video file {video_filename} not found in test_videos directory")
+    
+    # Create a client and make request to our own endpoint
+    host = request.headers.get('host')
+    url = f"http://{host}/recognize-sign-from-video/"
+    
+    # Use aiohttp for async requests instead of synchronous requests
+    async with aiohttp.ClientSession() as session:
+        with open(video_path, "rb") as video_file:
+            data = aiohttp.FormData()
+            data.add_field('file', 
+                           video_file, 
+                           filename=video_filename,
+                           content_type='video/mp4')
+            
+            async with session.post(url, data=data) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    error_text = await response.text()
+                    raise HTTPException(
+                        status_code=response.status, 
+                        detail=f"Error from recognition endpoint: {error_text}"
+                    )
 
 @app.post("/recognize-gesture/")
 async def recognize_gesture(file: UploadFile = File(...)):
@@ -87,83 +252,103 @@ async def process_audio(audio: UploadFile = File(...)):
 #     contents = await file.read()
 #     return {"msg": "File received", "file_size": len(contents)}
 
+@app.post("/send_help_form/")
+async def send_help_form(item: Item):
+    if not item:
+        raise HTTPException(status_code=400, detail=f"No help form provided")
+    
+    if item.video:
+        video_file = "sign_language.mp4"
+        if os.path.isfile(video_file):
+            ct = datetime.datetime.now()
+            new_video_file_name = item.signed + str(ct) + ".mp4"
+            os.rename(video_file, new_video_file_name)
+            destination = "./error_videos/"
+            shutil.move("./" + new_video_file_name, destination)
+
+    return {"message": "File received"}
+
 @app.get("/")
 def read_root():
     return {"message": "Server is running!"}
 
 
-def record_audio_and_send(
-    server_url="http://127.0.0.1:8000/process_audio/",
-    duration=5,
-    output_filename="output.wav"
-):
-    """
-    Records audio from your microphone for `duration` seconds,
-    saves to `output_filename`, and sends it to the `server_url`
-    endpoint for STT.
-    """
+# def record_audio_and_send(
+#     server_url="http://127.0.0.1:8000/process_audio/",
+#     duration=5,
+#     output_filename="output.wav"
+# ):
+#     """
+#     Records audio from your microphone for `duration` seconds,
+#     saves to `output_filename`, and sends it to the `server_url`
+#     endpoint for STT.
+#     """
 
-    # Audio recording parameters
-    chunk = 1024          # Number of frames per buffer
-    format = pyaudio.paInt16
-    channels = 1
-    rate = 16000          # Whisper often expects 16k, but you can do 44100
-    record_seconds = duration
+#     # Audio recording parameters
+#     chunk = 1024          # Number of frames per buffer
+#     format = pyaudio.paInt16
+#     channels = 1
+#     rate = 16000          # Whisper often expects 16k, but you can do 44100
+#     record_seconds = duration
 
-    # Initialize PyAudio
-    p = pyaudio.PyAudio()
+#     # Initialize PyAudio
+#     p = pyaudio.PyAudio()
 
-    # Open stream
-    stream = p.open(format=format,
-                    channels=channels,
-                    rate=rate,
-                    input=True,
-                    frames_per_buffer=chunk)
+#     # Open stream
+#     stream = p.open(format=format,
+#                     channels=channels,
+#                     rate=rate,
+#                     input=True,
+#                     frames_per_buffer=chunk)
 
-    print(f"Recording for {record_seconds} second(s)...")
-    frames = []
+#     print(f"Recording for {record_seconds} second(s)...")
+#     frames = []
 
-    # Read mic data
-    for _ in range(0, int(rate / chunk * record_seconds)):
-        data = stream.read(chunk)
-        frames.append(data)
+#     # Read mic data
+#     for _ in range(0, int(rate / chunk * record_seconds)):
+#         data = stream.read(chunk)
+#         frames.append(data)
 
-    # Stop and close
-    stream.stop_stream()
-    stream.close()
-    p.terminate()
+#     # Stop and close
+#     stream.stop_stream()
+#     stream.close()
+#     p.terminate()
 
-    print("Recording complete. Saving WAV file...")
+#     print("Recording complete. Saving WAV file...")
 
-    # Save as WAV
-    wf = wave.open(output_filename, 'wb')
-    wf.setnchannels(channels)
-    wf.setsampwidth(p.get_sample_size(format))
-    wf.setframerate(rate)
-    wf.writeframes(b''.join(frames))
-    wf.close()
+#     # Save as WAV
+#     wf = wave.open(output_filename, 'wb')
+#     wf.setnchannels(channels)
+#     wf.setsampwidth(p.get_sample_size(format))
+#     wf.setframerate(rate)
+#     wf.writeframes(b''.join(frames))
+#     wf.close()
 
-    # Send the file to the server
-    try:
-        with open(output_filename, "rb") as f:
-            files = {"file": ("recording.wav", f, "audio/wav")}
-            print(f"Sending to {server_url} ...")
-            response = requests.post(server_url, files=files)
-        if response.status_code == 200:
-            data = response.json()
-            print("Server response:", data)
-        else:
-            print(f"Error from server: HTTP {response.status_code}")
-            print("Response:", response.text)
-    finally:
-        # Clean up local WAV file if you want
-        if os.path.exists(output_filename):
-            os.remove(output_filename)
+#     # Send the file to the server
+#     try:
+#         with open(output_filename, "rb") as f:
+#             files = {"file": ("recording.wav", f, "audio/wav")}
+#             print(f"Sending to {server_url} ...")
+#             response = requests.post(server_url, files=files)
+#         if response.status_code == 200:
+#             data = response.json()
+#             print("Server response:", data)
+#         else:
+#             print(f"Error from server: HTTP {response.status_code}")
+#             print("Response:", response.text)
+#     finally:
+#         # Clean up local WAV file if you want
+#         if os.path.exists(output_filename):
+#             os.remove(output_filename)
 
 
 if __name__ == "__main__":
-    record_audio_and_send(
-        server_url="http://127.0.0.1:8000/process_audio/",  # or your LAN IP
-        duration=5,
-        output_filename="temp_audio.wav"
+    uvicorn.run(
+        "main:app",  # Replace with your actual module:app
+        host="127.0.0.1",  # Listen on all interfaces
+        port=8001,
+        reload =True,
     )
+
+        #     ssl_keyfile="./certs/key.pem",
+        #     ssl_certfile="./certs/cert.pem"
