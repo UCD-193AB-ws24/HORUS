@@ -10,7 +10,8 @@ import torch
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 import multiprocessing as mp_threading
 from mediapipe.framework.formats import landmark_pb2
-import torchvision.io.read_video as rv
+from torchvision.io import read_video as rv
+# import torchvision.io.read_video as rv
 
 BaseOptions = mp.tasks.BaseOptions
 FaceLandmarker = mp.tasks.vision.FaceLandmarker

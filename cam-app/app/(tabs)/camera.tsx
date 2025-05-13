@@ -8,8 +8,11 @@ import { Audio } from "expo-av";
 import { SpeechToText } from "@/components/SpeechToText";
 import SigningTimingBar from "@/components/SigningTimingBar";
 
-let HOSTNAME = "https://0f4e-2600-1010-b33b-f128-95dc-1556-e9d7-91c6.ngrok-free.app/"
+let HOSTNAME = "https://a59a-76-78-246-161.ngrok-free.app/"
 import Checkbox from 'expo-checkbox';
+import { useAuth } from "@/lib/AuthContext";
+import { supabase } from "@/lib/supabaseClient";
+import { decode, encode } from 'base64-arraybuffer';
 
 export default function CameraComponent() {
   const [facing, setFacing] = useState<CameraType>("front"); // Set front camera as default for signing
@@ -28,6 +31,7 @@ export default function CameraComponent() {
   const [signTranslated, onChangeSignTranslated] = useState('');
   const [isChecked, setChecked] = useState(false);
   const [Portrait, setPortrait] = useState(true);
+  const {user} = useAuth();
   
   const cameraRef = useRef<CameraView | null>(null);
   const recordingTimer = useRef<NodeJS.Timeout | null>(null);
@@ -148,12 +152,35 @@ export default function CameraComponent() {
     }
   };
 
+
+  const uploadVideoToBucket = async (uri: string, sign: string) => {
+    const d = new Date();
+    let time = d.getTime();
+    let file_name = user.id + "/" + sign + ".mp4";
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    let fileReader = new FileReader();
+    let array;
+    fileReader.readAsArrayBuffer(blob);
+    fileReader.onload = async function() {
+      array = this.result;
+      let buf = encode(array);
+      const {data, error} = await supabase.storage
+        .from('video-files')
+        .update(file_name, decode(buf), {
+          contentType: 'video/mp4'
+        });
+      if (error) {
+        console.error('Unable to upload file', error);
+      }
+    }
+  }
+
   // Function to analyze actual video
   const analyzeSignLanguageVideo = async (uri: string) => {
     try {
       console.log("[DEBUG] Preparing video for upload...");
       let formData = new FormData();
-     
       // In React Native, we need to append the file differently
       // No need to fetch and create a blob - directly use the uri
       formData.append("file", {
@@ -192,6 +219,7 @@ export default function CameraComponent() {
         setRecognizedWord(data.recognized_word);
         Speech.speak(data.recognized_word);
       }
+      await uploadVideoToBucket(uri, data.recognized_word);
     } catch (error) {
       console.error("[ERROR] Error analyzing sign language video:", error);
     }
@@ -271,23 +299,31 @@ export default function CameraComponent() {
     }
   };
 
-  const sendFormToServer = async () => {
-    try {
-        let responseFetch = await fetch('http://127.0.0.1:8000/send_help_form/', {
-            method: 'POST',
-            body: JSON.stringify({"signed": signSigned, "translated": signTranslated, "video": isChecked}),
-            headers: {
-                "Accept": "application/json",
-                "Content-Type": "application/json"
-            },
+
+  const moveVideo = async (fileName: string) => {
+    let t = new Date().toLocaleTimeString('en-US', { hour12: false, hour: "numeric", minute: "numeric", second: "numeric"});
+    const {data, error} = await supabase.storage
+      .from('video-files')
+      .move(user.id + '/' + fileName, 'incorrect-translations/' + signSigned.toLowerCase() + '-' + t + '.mp4');
+    if (error) {
+      console.error("Unable to move file ", error);
+    }
+  }
+
+  const moveErrorVideo = async () => {
+    if (isChecked) {
+      const { data, error } = await supabase.storage
+        .from('video-files')
+        .list(String(user.id));
+      if (!error) {
+        data.forEach((element) => {
+          let fileName = element.name;
+          let nameArray = fileName.split('.');
+          if (nameArray[0] == signTranslated.toLowerCase()) {
+            moveVideo(fileName);
+          }
         });
-        if (!responseFetch.ok) {
-            const errorText = await responseFetch.text();
-            console.error('[ERROR] Server response:', errorText);
-            throw new Error(errorText);
-        }
-    } catch (error) {
-        console.error('[ERROR] Error sending form:', error);
+      }
     }
     onChangeSignSigned('');
     onChangeSignTranslated('');
@@ -506,7 +542,7 @@ export default function CameraComponent() {
               <TouchableOpacity style={styles.button} onPress={exitHelpPage}>
                 <Text style={styles.buttonText}>Exit</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.button} onPress={sendFormToServer}>
+              <TouchableOpacity style={styles.button} onPress={moveErrorVideo}>
                 <Text style={styles.buttonText}>Submit</Text>
               </TouchableOpacity>
             </View>
@@ -535,7 +571,7 @@ export default function CameraComponent() {
               <TouchableOpacity style={styles.button} onPress={exitHelpPage}>
                 <Text style={styles.buttonText}>Exit</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.button} onPress={sendFormToServer}>
+              <TouchableOpacity style={styles.button} onPress={moveErrorVideo}>
                 <Text style={styles.buttonText}>Submit</Text>
               </TouchableOpacity>
             </View>
