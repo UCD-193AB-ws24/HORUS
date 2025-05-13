@@ -402,7 +402,7 @@ export default function CameraComponent() {
         )}
 
         {!Portrait && (
-          <View style={styles.buttonContainerLandscape}>
+          <View style={styles.recordingButtonContainerLandscape}>
         
             {/* Utility buttons moved to the top row */}
             <View style={styles.utilityButtonsGroup}>
@@ -415,26 +415,16 @@ export default function CameraComponent() {
               </TouchableOpacity>
             </View>
             
-            {!isAudioRecording ? (
-              <TouchableOpacity style={styles.buttonLandscape} onPress={handleAudioRecordingToggle}>
-                <Text style={styles.buttonText}>Record{"\n"}Audio</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity style={styles.buttonLandscape} onPress={handleAudioRecordingToggle}>
-                <Text style={styles.buttonText}>Stop{"\n"}Recording</Text>
-              </TouchableOpacity>
-            )}
-            
             {!isVideoRecording ? (
               <TouchableOpacity
-                style={styles.buttonLandscape}
+                style={styles.recordButtonLandscape}
                 onPress={handleVideoRecordingToggle}
               >
                 <AntDesign name="playcircleo" size={44} color="white" />
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
-                style={styles.buttonLandscape}
+                style={styles.recordButtonLandscape}
                 onPress={handleVideoRecordingToggle}
               >
                 <AntDesign name="pausecircleo" size={44} color="white" />
@@ -444,9 +434,25 @@ export default function CameraComponent() {
             <TouchableOpacity style={styles.buttonLandscape} onPress={toggleCameraFacing}>
               <AntDesign name="retweet" size={44} color="white" />
             </TouchableOpacity>
-
+          </View>
+        )}
+        {!Portrait && (
+          <View style={styles.audioButton}>
+            {!isAudioRecording ? (
+              <TouchableOpacity style={styles.buttonLandscape} onPress={handleAudioRecordingToggle}>
+                <Text style={styles.buttonText}>Record{"\n"}Audio</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.buttonLandscape} onPress={handleAudioRecordingToggle}>
+                <Text style={styles.buttonText}>Stop</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+        {!Portrait && (
+          <View style={styles.helpButton}>
             <TouchableOpacity style={styles.buttonLandscape} onPress={() => setNeedHelp(true)}>
-              <Text style={styles.buttonText}>Report an Error</Text>
+              <Text style={styles.buttonText}>Report Error</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -576,7 +582,7 @@ const styles = StyleSheet.create({
   recordingIndicatorLandscape: {
     position: "absolute",
     top: 20,
-    left: 20,
+    left: 100,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(200, 0, 0, 0.5)",
@@ -604,15 +610,30 @@ const styles = StyleSheet.create({
     top: 760,
     marginBottom: 20,
   },
-  buttonContainerLandscape: {
+  recordingButtonContainerLandscape: {
     display: "flex",
     flexDirection: "column",
     backgroundColor: "transparent",
-    justifyContent: "center",
+    justifyContent: "space-between",
     alignItems: "flex-end",
     position: "fixed",
-    marginBottom: 20,
-    marginTop: 25,
+    gap: 38,
+    marginTop: 20,
+    marginLeft: 10,
+  },
+  audioButton: {
+    width: 75,
+    height: 80,
+    position: "absolute",
+    bottom: 10,
+    left: 5,
+  },
+  helpButton: {
+    width: 75,
+    height: 80,
+    position: "absolute",
+    top: 20,
+    left: 5,
   },
   button: {
     width: 75,
@@ -631,8 +652,24 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   buttonLandscape: {
-    width: 75,
-    height: 65,
+    width: 80,
+    height: 80,
+    marginHorizontal: 5,
+    backgroundColor: "rgba(40, 40, 40, 0.8)",
+    borderRadius: 40,
+    borderWidth: 2,
+    borderColor: Colors.light.tint,
+    shadowColor: Colors.light.tint,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  recordButtonLandscape: {
+    width: 80,
+    height: 120,
     marginHorizontal: 5,
     backgroundColor: "rgba(40, 40, 40, 0.8)",
     borderRadius: 40,
@@ -697,10 +734,9 @@ const styles = StyleSheet.create({
   },
   textContainer: {
     position: "absolute",
-    bottom: 120,
-    left: 0,
-    right: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    width: "100%",
+    bottom: 50,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
     padding: 10,
   },
   recognizedText: {
@@ -710,11 +746,10 @@ const styles = StyleSheet.create({
   },
   sentenceContainer: {
     position: "absolute",
-    bottom: 100,
-    left: 0,
-    right: 0,
+    width: "100%",
+    bottom: 110,
     backgroundColor: "rgba(0, 0, 0, 0.7)",
-    padding: 15,
+    padding: 10,
   },
   sentenceText: {
     color: "white",
