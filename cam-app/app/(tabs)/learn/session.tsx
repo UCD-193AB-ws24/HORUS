@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, Image, Switch, Pressable } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { useIsFocused } from "@react-navigation/native";
 import tw from "twrnc";
 import useAlphabetLesson from "@/hooks/useAlphabetLesson";
 import LessonCamera from "@/components/LessonCamera";
@@ -48,6 +49,7 @@ const CONGRATULATORY_MESSAGES = [
 
 export default function Session() {
   const router = useRouter();
+  const isFocused = useIsFocused();
   const { startIndex } = useLocalSearchParams<{ startIndex?: string }>();
   const { letters } = useAlphabetLesson();
   const { saveProgress, user } = useAuth();
@@ -144,7 +146,7 @@ export default function Session() {
       </View>
 
       <View style={tw`self-center w-4/5 h-3/5 overflow-hidden rounded-xl`}>
-        <LessonCamera onDetect={handleDetect} />
+        {isFocused && <LessonCamera onDetect={handleDetect} />}
       </View>
 
       {showImage && (
