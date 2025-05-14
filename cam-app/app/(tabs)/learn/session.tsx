@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, Image, Switch } from "react-native";
+import { View, Text, Image, Switch, Pressable } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import tw from "twrnc";
 import useAlphabetLesson from "@/hooks/useAlphabetLesson";
 import LessonCamera from "@/components/LessonCamera";
 import { useAuth } from "@/lib/AuthContext";
+import { Ionicons } from "@expo/vector-icons";
 
 const signImages: Record<string, number> = {
   a: require("@/assets/signs/a.png"),
@@ -121,17 +122,25 @@ export default function Session() {
 
   return (
     <View style={tw`flex-1 bg-white dark:bg-black p-4`}>
-      <View style={tw`flex-row justify-end items-center mt-8`}>
-      {/* <View style={tw`flex-row justify-end items-center mb-4`}> */}
-        <Text style={tw`text-gray-800 dark:text-gray-100 mr-2`}>
-          Show image
-        </Text>
-        <Switch
-          value={showImage}
-          onValueChange={setShowImage}
-          trackColor={{ false: "#767577", true: "#81b0ff" }}
-          thumbColor={showImage ? "#f5dd4b" : "#f4f3f4"}
-        />
+      <View style={tw`flex-row justify-between items-center mt-8`}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.back()}
+          style={tw`p-2`}
+        >
+          <Ionicons name="arrow-back" size={28} color="#0a7ea4" />
+        </Pressable>
+        <View style={tw`flex-row items-center`}>
+          <Text style={tw`text-gray-800 dark:text-gray-100 mr-2`}>
+            Show image
+          </Text>
+          <Switch
+            value={showImage}
+            onValueChange={setShowImage}
+            trackColor={{ false: "#767577", true: "#81b0ff" }}
+            thumbColor={showImage ? "#f5dd4b" : "#f4f3f4"}
+          />
+        </View>
       </View>
 
       <View style={tw`self-center w-4/5 h-3/5 overflow-hidden rounded-xl`}>
