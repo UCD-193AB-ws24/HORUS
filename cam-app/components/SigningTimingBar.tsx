@@ -91,7 +91,8 @@ const SigningTimingBar: React.FC<SigningTimingBarProps> = ({
         clearTimeout(timerRef.current);
       }
     };
-  }, [isRecording, phase, totalDuration, preparationTime, onRecordingPhaseChange]);
+  // FIXED: Removed 'phase' from the dependency array to prevent re-runs when phase changes
+  }, [isRecording, totalDuration, preparationTime, onRecordingPhaseChange]);
 
   // Calculate the width of the progress indicator
   const progressWidth = progressAnim.interpolate({

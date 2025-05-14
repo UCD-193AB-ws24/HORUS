@@ -17,7 +17,7 @@ import { SpeechToText } from "@/components/SpeechToText";
 import SigningTimingBar from "@/components/SigningTimingBar";
 import { useIsFocused } from "@react-navigation/native";
 
-let HOSTNAME = "https://a59a-76-78-246-161.ngrok-free.app/";
+let HOSTNAME = "https://0e7e-2600-1010-b13f-54d4-c866-d922-d45b-8039.ngrok-free.app/";
 import Checkbox from "expo-checkbox";
 import { useAuth } from "@/lib/AuthContext";
 import { supabase } from "@/lib/supabaseClient";

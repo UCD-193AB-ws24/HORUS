@@ -3,7 +3,7 @@ import { View } from "react-native";
 import { CameraView, CameraType, useCameraPermissions } from "expo-camera";
 
 
-let HOSTNAME = 'https://0f4e-2600-1010-b33b-f128-95dc-1556-e9d7-91c6.ngrok-free.app/'
+let HOSTNAME = 'https://0e7e-2600-1010-b13f-54d4-c866-d922-d45b-8039.ngrok-free.app/'
 
 type Props = {
   onDetect(letter: string): void;
@@ -44,7 +44,7 @@ export default function LessonCamera({ onDetect, intervalMs = 300 }: Props) {
         formData.append("file", {
           uri: photo.uri,
           name: "photo.jpg",
-          type: "iamge/jpg"
+          type: "image/jpg"
         } as any);
 
         const res = await fetch(HOSTNAME + "recognize-gesture/", {
