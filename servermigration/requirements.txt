@@ -1,0 +1,7 @@
+runpod==1.2.1
+torch>=2.0.0
+opencv-python>=4.7.0
+mediapipe>=0.10.0
+pandas>=1.5.3
+numpy>=1.23.5
+Pillow>=9.4.0
