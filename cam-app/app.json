@@ -19,7 +19,9 @@
         "usesNonExemptEncryption": false
       },
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "This app uses the camera to take photos.",
+        "NSMicrophoneUsageDescription": "This app uses the microphone for recording audio."
       }
     },
     "android": {

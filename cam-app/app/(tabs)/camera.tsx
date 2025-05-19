@@ -46,7 +46,7 @@ export default function CameraComponent() {
   const [isChecked, setChecked] = useState(false);
   const [Portrait, setPortrait] = useState(true);
   const { user } = useAuth();
-
+  
   const cameraRef = useRef<CameraView | null>(null);
   const recordingTimer = useRef<NodeJS.Timeout | null>(null);
 
