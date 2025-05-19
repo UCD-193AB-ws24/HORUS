@@ -6,20 +6,30 @@
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
+    "jsEngine": "jsc",
     "splash": {
       "image": "./assets/images/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ecs193.signlanguageapp",
+      "buildNumber": "1.0.0",
+      "config": {
+        "usesNonExemptEncryption": false,
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.anonymous.camapp",
+      "package": "com.ecs193.signlanguageapp",
       "permissions": [
         "CAMERA",
         "RECORD_AUDIO",
@@ -38,6 +48,15 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "SUPABASE_URL": "https://aaebfcjkubnwfxyfgrrj.supabase.co",
+      "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFhZWJmY2prdWJud2Z4eWZncnJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYwNDIyMzcsImV4cCI6MjA2MTYxODIzN30.3-6Nn_c00uhGRJDGVe2Cr4LNNmVEjqYU0dh55YObeNo",
+      "router": {},
+      "eas": {
+        "projectId": "50db876c-6aa5-4b1f-8d55-e9c24f2270f2",
+        "EAS_SKIP_AUTO_FINGERPRINT": 1
+      }
     }
   }
 }
