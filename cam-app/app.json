@@ -6,7 +6,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
-    "jsEngine": "jsc",
     "splash": {
       "image": "./assets/images/splash.png",
       "resizeMode": "contain",
@@ -17,8 +16,7 @@
       "bundleIdentifier": "com.ecs193.signlanguageapp",
       "buildNumber": "1.0.0",
       "config": {
-        "usesNonExemptEncryption": false,
-        "ITSAppUsesNonExemptEncryption": false
+        "usesNonExemptEncryption": false
       },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
