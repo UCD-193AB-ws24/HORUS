@@ -9,6 +9,9 @@ import {
   Platform,
   StatusBar,
   Image,
+  ScrollView,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/lib/AuthContext";
@@ -48,75 +51,86 @@ export default function SignIn() {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={styles.container}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
     >
-      <StatusBar barStyle="light-content" />
-      <View style={styles.backgroundGradient} />
-      <View style={styles.splitContainer}>
-        <View style={styles.brandingSide}>
-          <View style={styles.brandingContent}>
-            <Image
-              source={require("@/assets/images/horus.png")}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-            <Text style={styles.appTitle}>HORUS</Text>
-          </View>
-          <View style={styles.footerContainer}>
-            <Text style={styles.tagline}>
-              American Sign Language Translation App
-            </Text>
-            <Text style={styles.footerText}>Made by group6 LLC</Text>
-          </View>
-        </View>
-
-        <View style={styles.formSide}>
-          <View style={styles.formContainer}>
-            <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Sign in for seamless</Text>
-
-            <View style={styles.inputContainer}>
-              <Field
-                icon="mail-outline"
-                placeholder="Email"
-                value={email}
-                onChangeText={setEmail}
-                textContentType="emailAddress"
-                keyboardType="email-address"
-                secure={false}
-                selection="#38BDF8"
-                border="rgba(56, 189, 248, 0.5)"
-              />
-              <Field
-                icon="lock-closed-outline"
-                placeholder="Password"
-                value={password}
-                onChangeText={setPassword}
-                textContentType="password"
-                secure={true}
-                selection="#38BDF8"
-                border="rgba(56, 189, 248, 0.5)"
-              />
-              {errorMsg && <Text style={styles.error}>{errorMsg}</Text>}
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <StatusBar barStyle="light-content" />
+          <View style={styles.backgroundGradient} />
+          <View style={styles.splitContainer}>
+            <View style={styles.brandingSide}>
+              <View style={styles.brandingContent}>
+                <Image
+                  source={require("@/assets/images/horus.png")}
+                  style={styles.logo}
+                  resizeMode="contain"
+                />
+                <Text style={styles.appTitle}>HORUS</Text>
+              </View>
+              <View style={styles.footerContainer}>
+                <Text style={styles.tagline}>
+                  American Sign Language Translation App
+                </Text>
+                <Text style={styles.footerText}>Made by group6 LLC</Text>
+              </View>
             </View>
 
-            <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-              <Text style={styles.buttonText}>Sign In</Text>
-            </TouchableOpacity>
+            <View style={styles.formSide}>
+              <View style={styles.formContainer}>
+                <Text style={styles.title}>Welcome Back</Text>
+                <Text style={styles.subtitle}>
+                  Sign in for seamless ASL translation
+                </Text>
 
-            <TouchableOpacity
-              style={styles.signUpButton}
-              onPress={() => router.push("/signup")}
-            >
-              <Text style={styles.signUpText}>
-                Don't have an account?{" "}
-                <Text style={styles.signUpTextHighlight}>Sign Up</Text>
-              </Text>
-            </TouchableOpacity>
+                <View style={styles.inputContainer}>
+                  <Field
+                    icon="mail-outline"
+                    placeholder="Email"
+                    value={email}
+                    onChangeText={setEmail}
+                    textContentType="emailAddress"
+                    keyboardType="email-address"
+                    secure={false}
+                    selection="#38BDF8"
+                    border="rgba(56, 189, 248, 0.5)"
+                  />
+                  <Field
+                    icon="lock-closed-outline"
+                    placeholder="Password"
+                    value={password}
+                    onChangeText={setPassword}
+                    textContentType="password"
+                    secure={true}
+                    selection="#38BDF8"
+                    border="rgba(56, 189, 248, 0.5)"
+                  />
+                  {errorMsg && <Text style={styles.error}>{errorMsg}</Text>}
+                </View>
+
+                <TouchableOpacity style={styles.button} onPress={handleSubmit}>
+                  <Text style={styles.buttonText}>Sign In</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.signUpButton}
+                  onPress={() => router.push("/signup")}
+                >
+                  <Text style={styles.signUpText}>
+                    Don't have an account?{" "}
+                    <Text style={styles.signUpTextHighlight}>Sign Up</Text>
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
-        </View>
-      </View>
+        </ScrollView>
+      </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
 }
@@ -238,7 +252,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     color: "rgba(203, 213, 225, 0.8)",
-    marginBottom: 40,
+    marginBottom: 30,
   },
   inputContainer: {
     width: "100%",

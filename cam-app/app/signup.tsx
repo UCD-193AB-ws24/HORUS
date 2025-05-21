@@ -9,6 +9,9 @@ import {
   Platform,
   StatusBar,
   Image,
+  ScrollView,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/lib/AuthContext";
@@ -50,75 +53,86 @@ export default function SignUp() {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={styles.container}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
     >
-      <StatusBar barStyle="light-content" />
-      <View style={styles.backgroundGradient} />
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <StatusBar barStyle="light-content" />
+          <View style={styles.backgroundGradient} />
 
-      <View style={styles.splitContainer}>
-        <View style={styles.formSide}>
-          <View style={styles.formContainer}>
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Join our community of learners</Text>
+          <View style={styles.splitContainer}>
+            <View style={styles.formSide}>
+              <View style={styles.formContainer}>
+                <Text style={styles.title}>Join Us</Text>
+                <Text style={styles.subtitle}>
+                  Register for a free account today
+                </Text>
 
-            <View style={styles.inputContainer}>
-              <Field
-                icon="mail-outline"
-                placeholder="Email"
-                value={email}
-                onChangeText={setEmail}
-                textContentType="emailAddress"
-                keyboardType="email-address"
-                secure={false}
-              />
+                <View style={styles.inputContainer}>
+                  <Field
+                    icon="mail-outline"
+                    placeholder="Email"
+                    value={email}
+                    onChangeText={setEmail}
+                    textContentType="emailAddress"
+                    keyboardType="email-address"
+                    secure={false}
+                  />
 
-              <Field
-                icon="lock-closed-outline"
-                placeholder="Password"
-                value={password}
-                onChangeText={setPassword}
-                textContentType="password"
-                secure={true}
-              />
+                  <Field
+                    icon="lock-closed-outline"
+                    placeholder="Password"
+                    value={password}
+                    onChangeText={setPassword}
+                    textContentType="password"
+                    secure={true}
+                  />
 
-              {errorMsg && <Text style={styles.error}>{errorMsg}</Text>}
+                  {errorMsg && <Text style={styles.error}>{errorMsg}</Text>}
+                </View>
+
+                <TouchableOpacity style={styles.button} onPress={handleSubmit}>
+                  <Text style={styles.buttonText}>Create Account</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.signInButton}
+                  onPress={() => router.push("/signin")}
+                >
+                  <Text style={styles.signInText}>
+                    Already have an account?{" "}
+                    <Text style={styles.signInTextHighlight}>Sign In</Text>
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
-            <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-              <Text style={styles.buttonText}>Create Account</Text>
-            </TouchableOpacity>
+            <View style={styles.brandingSide}>
+              <View style={styles.brandingContent}>
+                <Image
+                  source={require("@/assets/images/horus.png")}
+                  style={styles.logo}
+                  resizeMode="contain"
+                />
+                <Text style={styles.appTitle}>HORUS</Text>
+              </View>
 
-            <TouchableOpacity
-              style={styles.signInButton}
-              onPress={() => router.push("/signin")}
-            >
-              <Text style={styles.signInText}>
-                Already have an account?{" "}
-                <Text style={styles.signInTextHighlight}>Sign In</Text>
-              </Text>
-            </TouchableOpacity>
+              <View style={styles.footerContainer}>
+                <Text style={styles.tagline}>
+                  Experience Sign Language Learning
+                </Text>
+                <Text style={styles.footerText}>Made by group6 LLC</Text>
+              </View>
+            </View>
           </View>
-        </View>
-
-        <View style={styles.brandingSide}>
-          <View style={styles.brandingContent}>
-            <Image
-              source={require("@/assets/images/horus.png")}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-            <Text style={styles.appTitle}>HORUS</Text>
-          </View>
-
-          <View style={styles.footerContainer}>
-            <Text style={styles.tagline}>
-              Experience Sign Language Learning
-            </Text>
-            <Text style={styles.footerText}>Made by group6 LLC</Text>
-          </View>
-        </View>
-      </View>
+        </ScrollView>
+      </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
 }
@@ -178,10 +192,12 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "#0A1128",
   },
-  splitContainer: { flex: 1, flexDirection: "row" },
-
+  splitContainer: {
+    flex: 1,
+    flexDirection: "row",
+  },
   formSide: { flex: 1.2, justifyContent: "center", alignItems: "center" },
-  formContainer: { width: "75%", padding: 40, gap: 8 },
+  formContainer: { width: "75%", padding: 40 },
   title: {
     fontSize: 36,
     fontWeight: "bold",
@@ -189,9 +205,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontFamily: "Pharaoh",
   },
-  subtitle: { fontSize: 16, color: "rgba(203,213,225,0.8)", marginBottom: 40 },
+  subtitle: { fontSize: 16, color: "rgba(203,213,225,0.8)", marginBottom: 20 },
 
-  inputContainer: { gap: 16, width: "100%", marginBottom: 24 },
+  inputContainer: { gap: 16, width: "100%", marginBottom: 20 },
 
   inputWrapper: {
     flexDirection: "row",
@@ -223,7 +239,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(16,185,129,0.6)",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 16,
   },
   buttonText: { color: "#10B981", fontSize: 18, fontWeight: "600" },
 
