@@ -46,13 +46,14 @@ export default function HomeScreen() {
 
       // 4) move+shrink logo+title in parallel
       Animated.parallel([
-        Animated.spring(position, {
+        Animated.timing(position, {
           toValue: { x: xOffset, y: yOffset },
+          duration: 1500,
           useNativeDriver: true,
         }),
         Animated.timing(scaleAnim, {
           toValue: 0.6,
-          duration: 1000,
+          duration: 1500,
           useNativeDriver: true,
         }),
       ]),
