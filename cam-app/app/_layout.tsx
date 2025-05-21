@@ -1,22 +1,17 @@
-// app/_layout.tsx
-
 "use client";
 
-import React, { useEffect, useState, createContext } from "react";
+import React, { useEffect, useState, createContext, useRef } from "react";
 import {
   DarkTheme,
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import "react-native-reanimated";
-import { TouchableOpacity, StyleSheet } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { StyleSheet } from "react-native";
 
-import { Colors } from "@/constants/Colors";
 import { AuthProvider, useAuth } from "@/lib/AuthContext";
 
 export const ThemeContext = createContext<{
@@ -33,10 +28,14 @@ SplashScreen.preventAutoHideAsync();
 function RootStack() {
   const { session } = useAuth();
   const router = useRouter();
+  const hasRedirected = useRef(false);
 
   useEffect(() => {
-    if (!session) {
-      router.replace("/signin");
+    if (!session && !hasRedirected.current) {
+      hasRedirected.current = true;
+      setTimeout(() => {
+        router.replace("/signin");
+      }, 0);
     }
   }, [session]);
 
@@ -83,25 +82,6 @@ export default function RootLayout() {
         <AuthProvider>
           <RootStack />
         </AuthProvider>
-
-        {/* <TouchableOpacity
-          style={[
-            styles.themeToggle,
-            {
-              backgroundColor:
-                theme === "dark"
-                  ? Colors.dark.background
-                  : Colors.light.background,
-            },
-          ]}
-          onPress={toggleTheme}
-        >
-          <Ionicons
-            name={theme === "dark" ? "moon" : "sunny"}
-            size={24}
-            color={theme === "dark" ? Colors.dark.text : Colors.light.text}
-          />
-        </TouchableOpacity> */}
       </ThemeProvider>
     </ThemeContext.Provider>
   );
