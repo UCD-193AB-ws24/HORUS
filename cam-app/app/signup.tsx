@@ -125,7 +125,7 @@ export default function SignUp() {
 
               <View style={styles.footerContainer}>
                 <Text style={styles.tagline}>
-                  Experience Sign Language Learning
+                  American Sign Language Translation App
                 </Text>
                 <Text style={styles.footerText}>Made by group6 LLC</Text>
               </View>

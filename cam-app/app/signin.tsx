@@ -75,7 +75,7 @@ export default function SignIn() {
               </View>
               <View style={styles.footerContainer}>
                 <Text style={styles.tagline}>
-                  American Sign Language Translation App
+                  Fast ASL translation at your fingertips
                 </Text>
                 <Text style={styles.footerText}>Made by group6 LLC</Text>
               </View>
@@ -217,6 +217,7 @@ const styles = StyleSheet.create({
   },
   tagline: {
     color: "#FFFFFF",
+    width: "60%",
     fontSize: 18,
     fontWeight: "600",
     textAlign: "center",
