@@ -74,9 +74,7 @@ export default function SignIn() {
         <View style={styles.formSide}>
           <View style={styles.formContainer}>
             <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>
-              Sign in to continue your learning journey
-            </Text>
+            <Text style={styles.subtitle}>Sign in for seamless</Text>
 
             <View style={styles.inputContainer}>
               <Field
