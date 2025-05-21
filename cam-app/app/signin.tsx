@@ -11,7 +11,6 @@ import {
   Image,
   ScrollView,
   Keyboard,
-  TouchableWithoutFeedback,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/lib/AuthContext";
@@ -49,88 +48,96 @@ export default function SignIn() {
     else router.replace("/");
   };
 
+  const content = (
+    <>
+      <StatusBar barStyle="light-content" />
+      <View style={styles.backgroundGradient} />
+      <View style={styles.splitContainer}>
+        <View style={styles.brandingSide}>
+          <View style={styles.brandingContent}>
+            <Image
+              source={require("@/assets/images/horus.png")}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+            <Text style={styles.appTitle}>HORUS</Text>
+          </View>
+          <View style={styles.footerContainer}>
+            <Text style={styles.tagline}>
+              Fast ASL translation at your fingertips
+            </Text>
+            <Text style={styles.footerText}>Made by group6 LLC</Text>
+          </View>
+        </View>
+
+        <View style={styles.formSide}>
+          <View style={styles.formContainer}>
+            <Text style={styles.title}>Welcome Back</Text>
+            <Text style={styles.subtitle}>
+              Sign in for seamless ASL translation
+            </Text>
+
+            <View style={styles.inputContainer}>
+              <Field
+                icon="mail-outline"
+                placeholder="Email"
+                value={email}
+                onChangeText={setEmail}
+                textContentType="emailAddress"
+                keyboardType="email-address"
+                secure={false}
+                selection="#38BDF8"
+                border="rgba(56, 189, 248, 0.5)"
+              />
+              <Field
+                icon="lock-closed-outline"
+                placeholder="Password"
+                value={password}
+                onChangeText={setPassword}
+                textContentType="password"
+                secure={true}
+                selection="#38BDF8"
+                border="rgba(56, 189, 248, 0.5)"
+              />
+              {errorMsg && <Text style={styles.error}>{errorMsg}</Text>}
+            </View>
+
+            <TouchableOpacity style={styles.button} onPress={handleSubmit}>
+              <Text style={styles.buttonText}>Sign In</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.signUpButton}
+              onPress={() => router.push("/signup")}
+            >
+              <Text style={styles.signUpText}>
+                Don't have an account?{" "}
+                <Text style={styles.signUpTextHighlight}>Sign Up</Text>
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </>
+  );
+
+  if (Platform.OS === "web") {
+    return <View style={styles.container}>{content}</View>;
+  }
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={styles.container}
       keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
     >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <ScrollView
-          contentContainerStyle={{ flexGrow: 1 }}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <StatusBar barStyle="light-content" />
-          <View style={styles.backgroundGradient} />
-          <View style={styles.splitContainer}>
-            <View style={styles.brandingSide}>
-              <View style={styles.brandingContent}>
-                <Image
-                  source={require("@/assets/images/horus.png")}
-                  style={styles.logo}
-                  resizeMode="contain"
-                />
-                <Text style={styles.appTitle}>HORUS</Text>
-              </View>
-              <View style={styles.footerContainer}>
-                <Text style={styles.tagline}>
-                  Fast ASL translation at your fingertips
-                </Text>
-                <Text style={styles.footerText}>Made by group6 LLC</Text>
-              </View>
-            </View>
-
-            <View style={styles.formSide}>
-              <View style={styles.formContainer}>
-                <Text style={styles.title}>Welcome Back</Text>
-                <Text style={styles.subtitle}>
-                  Sign in for seamless ASL translation
-                </Text>
-
-                <View style={styles.inputContainer}>
-                  <Field
-                    icon="mail-outline"
-                    placeholder="Email"
-                    value={email}
-                    onChangeText={setEmail}
-                    textContentType="emailAddress"
-                    keyboardType="email-address"
-                    secure={false}
-                    selection="#38BDF8"
-                    border="rgba(56, 189, 248, 0.5)"
-                  />
-                  <Field
-                    icon="lock-closed-outline"
-                    placeholder="Password"
-                    value={password}
-                    onChangeText={setPassword}
-                    textContentType="password"
-                    secure={true}
-                    selection="#38BDF8"
-                    border="rgba(56, 189, 248, 0.5)"
-                  />
-                  {errorMsg && <Text style={styles.error}>{errorMsg}</Text>}
-                </View>
-
-                <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-                  <Text style={styles.buttonText}>Sign In</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.signUpButton}
-                  onPress={() => router.push("/signup")}
-                >
-                  <Text style={styles.signUpText}>
-                    Don't have an account?{" "}
-                    <Text style={styles.signUpTextHighlight}>Sign Up</Text>
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </ScrollView>
-      </TouchableWithoutFeedback>
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {content}
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }

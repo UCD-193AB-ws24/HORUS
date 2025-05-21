@@ -11,7 +11,6 @@ import {
   Image,
   ScrollView,
   Keyboard,
-  TouchableWithoutFeedback,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/lib/AuthContext";
@@ -51,88 +50,96 @@ export default function SignUp() {
     else router.replace("/signin");
   };
 
+  const content = (
+    <>
+      <StatusBar barStyle="light-content" />
+      <View style={styles.backgroundGradient} />
+
+      <View style={styles.splitContainer}>
+        <View style={styles.formSide}>
+          <View style={styles.formContainer}>
+            <Text style={styles.title}>Join Us</Text>
+            <Text style={styles.subtitle}>
+              Register for a free account today
+            </Text>
+
+            <View style={styles.inputContainer}>
+              <Field
+                icon="mail-outline"
+                placeholder="Email"
+                value={email}
+                onChangeText={setEmail}
+                textContentType="emailAddress"
+                keyboardType="email-address"
+                secure={false}
+              />
+
+              <Field
+                icon="lock-closed-outline"
+                placeholder="Password"
+                value={password}
+                onChangeText={setPassword}
+                textContentType="password"
+                secure={true}
+              />
+
+              {errorMsg && <Text style={styles.error}>{errorMsg}</Text>}
+            </View>
+
+            <TouchableOpacity style={styles.button} onPress={handleSubmit}>
+              <Text style={styles.buttonText}>Create Account</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.signInButton}
+              onPress={() => router.push("/signin")}
+            >
+              <Text style={styles.signInText}>
+                Already have an account?{" "}
+                <Text style={styles.signInTextHighlight}>Sign In</Text>
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.brandingSide}>
+          <View style={styles.brandingContent}>
+            <Image
+              source={require("@/assets/images/horus.png")}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+            <Text style={styles.appTitle}>HORUS</Text>
+          </View>
+
+          <View style={styles.footerContainer}>
+            <Text style={styles.tagline}>
+              American Sign Language Translation App
+            </Text>
+            <Text style={styles.footerText}>Made by group6 LLC</Text>
+          </View>
+        </View>
+      </View>
+    </>
+  );
+
+  if (Platform.OS === "web") {
+    return <View style={styles.container}>{content}</View>;
+  }
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={styles.container}
       keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
     >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <ScrollView
-          contentContainerStyle={{ flexGrow: 1 }}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <StatusBar barStyle="light-content" />
-          <View style={styles.backgroundGradient} />
-
-          <View style={styles.splitContainer}>
-            <View style={styles.formSide}>
-              <View style={styles.formContainer}>
-                <Text style={styles.title}>Join Us</Text>
-                <Text style={styles.subtitle}>
-                  Register for a free account today
-                </Text>
-
-                <View style={styles.inputContainer}>
-                  <Field
-                    icon="mail-outline"
-                    placeholder="Email"
-                    value={email}
-                    onChangeText={setEmail}
-                    textContentType="emailAddress"
-                    keyboardType="email-address"
-                    secure={false}
-                  />
-
-                  <Field
-                    icon="lock-closed-outline"
-                    placeholder="Password"
-                    value={password}
-                    onChangeText={setPassword}
-                    textContentType="password"
-                    secure={true}
-                  />
-
-                  {errorMsg && <Text style={styles.error}>{errorMsg}</Text>}
-                </View>
-
-                <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-                  <Text style={styles.buttonText}>Create Account</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.signInButton}
-                  onPress={() => router.push("/signin")}
-                >
-                  <Text style={styles.signInText}>
-                    Already have an account?{" "}
-                    <Text style={styles.signInTextHighlight}>Sign In</Text>
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <View style={styles.brandingSide}>
-              <View style={styles.brandingContent}>
-                <Image
-                  source={require("@/assets/images/horus.png")}
-                  style={styles.logo}
-                  resizeMode="contain"
-                />
-                <Text style={styles.appTitle}>HORUS</Text>
-              </View>
-
-              <View style={styles.footerContainer}>
-                <Text style={styles.tagline}>
-                  American Sign Language Translation App
-                </Text>
-                <Text style={styles.footerText}>Made by group6 LLC</Text>
-              </View>
-            </View>
-          </View>
-        </ScrollView>
-      </TouchableWithoutFeedback>
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {content}
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
