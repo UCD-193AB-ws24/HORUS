@@ -125,8 +125,8 @@ export default function HomeScreen() {
           </TouchableOpacity>
 
           <Text style={styles.footer}>
-            Join a strong community of thousands bridging communication gaps one
-            sign at a time.
+            Join a vibrant community of thousands, bridging communication gaps
+            one sign at a time.
           </Text>
         </Animated.View>
       </ScrollView>
@@ -215,8 +215,9 @@ const styles = StyleSheet.create({
   },
   footer: {
     color: "rgba(203, 213, 225, 0.8)",
-    fontSize: 13,
+    fontSize: 15,
     textAlign: "center",
     marginTop: 20,
+    fontFamily: "Georgia",
   },
 });

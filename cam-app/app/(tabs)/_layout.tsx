@@ -11,6 +11,11 @@ export default function TabLayout() {
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
         headerShown: false,
+        tabBarStyle: {
+          backgroundColor: "rgba(255, 255, 255, 0.6)",
+          backdropFilter: "blur(10px)",
+          borderTopColor: "rgba(0, 0, 0, 0.05)",
+        },
       }}
     >
       <Tabs.Screen
@@ -49,24 +54,6 @@ export default function TabLayout() {
           ),
         }}
       />
-      {/* <Tabs.Screen
-        name="guide"
-        options={{
-          title: "Guide",
-          tabBarIcon: ({
-            color,
-            focused,
-          }: {
-            color: string;
-            focused: boolean;
-          }) => (
-            <TabBarIcon
-              name={focused ? "code-slash" : "code-slash-outline"}
-              color={color}
-            />
-          ),
-        }}
-      /> */}
       <Tabs.Screen
         name="learn"
         options={{
