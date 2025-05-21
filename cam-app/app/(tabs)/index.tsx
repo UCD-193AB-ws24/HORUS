@@ -10,7 +10,6 @@ import {
   ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { transform } from "@babel/core";
 
 export default function HomeScreen() {
   const fadeImage = useRef(new Animated.Value(0)).current;
@@ -33,18 +32,15 @@ export default function HomeScreen() {
         duration: 1400,
         useNativeDriver: true,
       }),
-
       // 2) fade in title
       Animated.timing(fadeTitle, {
         toValue: 1,
         duration: 1200,
         useNativeDriver: true,
       }),
-
-      // 3) pause a moment
+      // 3) pause
       Animated.delay(500),
-
-      // 4) move+shrink logo+title in parallel
+      // 4) move + shrink hero
       Animated.parallel([
         Animated.timing(position, {
           toValue: { x: xOffset, y: yOffset },
@@ -57,8 +53,7 @@ export default function HomeScreen() {
           useNativeDriver: true,
         }),
       ]),
-
-      // 5) then fade  the section
+      // 5) fade in section
       Animated.timing(fadeSection, {
         toValue: 1,
         duration: 800,
@@ -72,14 +67,10 @@ export default function HomeScreen() {
       <StatusBar barStyle="light-content" />
 
       <ScrollView
-        contentContainerStyle={[
-          styles.contentContainer,
-          { minHeight: wHeight },
-        ]}
+        contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
-        {/* logo + title */}
         <Animated.View
           style={[
             styles.hero,
@@ -101,13 +92,7 @@ export default function HomeScreen() {
           </Animated.Text>
         </Animated.View>
 
-        {/* section simply fades in */}
-        <Animated.View
-          style={[
-            styles.section,
-            { opacity: fadeSection, transform: [{ translateY: -250 }] },
-          ]}
-        >
+        <Animated.View style={[styles.section, { opacity: fadeSection }]}>
           <Text style={styles.headline}>
             Welcome to an immersive ASL experience
           </Text>
@@ -131,12 +116,14 @@ export default function HomeScreen() {
               for ASL to text & speech
             </Text>
           </View>
+
           <TouchableOpacity
             style={styles.button}
             onPress={() => router.push("/camera")}
           >
             <Text style={styles.buttonText}>Unlock Free ASL Translation</Text>
           </TouchableOpacity>
+
           <Text style={styles.footer}>
             Join a strong community of thousands bridging communication gaps one
             sign at a time.
@@ -148,10 +135,22 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0A1128" },
-  contentContainer: { padding: 20 },
-  hero: { alignItems: "center", justifyContent: "center", paddingVertical: 20 },
-  logo: { width: 200, height: 200 },
+  container: {
+    flex: 1,
+    backgroundColor: "#0A1128",
+  },
+  contentContainer: {
+    padding: 20,
+  },
+  hero: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 20,
+  },
+  logo: {
+    width: 200,
+    height: 200,
+  },
   title: {
     color: "#FFFFFF",
     fontSize: 28,
@@ -160,7 +159,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontFamily: "Pharaoh",
   },
-  section: { alignItems: "center", paddingHorizontal: 20, marginTop: 0 },
+  section: {
+    alignItems: "center",
+    paddingHorizontal: 20,
+    marginTop: -250,
+  },
   headline: {
     color: "#FFFFFF",
     fontSize: 22,
@@ -205,7 +208,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     borderRadius: 30,
   },
-  buttonText: { color: "#0A1128", fontSize: 15, fontWeight: "bold" },
+  buttonText: {
+    color: "#0A1128",
+    fontSize: 15,
+    fontWeight: "bold",
+  },
   footer: {
     color: "rgba(203, 213, 225, 0.8)",
     fontSize: 13,
