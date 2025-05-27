@@ -211,6 +211,21 @@ export default function Session() {
             >
               <Ionicons name="arrow-back" size={28} color="#38BDF8" />
             </Pressable>
+            <View style={styles.headerCenter}>
+              <View style={styles.centeredInstructionContainer}>
+                <View style={styles.instructionRow}>
+                  <Text style={styles.letterInstruction}>
+                    Sign the letter {currentLetter}
+                  </Text>
+                  <Text style={styles.scoreText}>Score: {score}</Text>
+                </View>
+                {congratulatoryMessage !== "" && (
+                  <Text style={styles.congratsMessage}>
+                    {congratulatoryMessage}
+                  </Text>
+                )}
+              </View>
+            </View>
             <View style={styles.switchWrapper}>
               <Text style={styles.switchLabel}>Show Image</Text>
               <CustomSwitch value={showImage} onValueChange={setShowImage} />
@@ -242,18 +257,6 @@ export default function Session() {
             )}
           </View>
 
-          <View style={styles.infoContainer}>
-            <Text style={styles.letterInstruction}>
-              Sign the letter {currentLetter}
-            </Text>
-            {congratulatoryMessage !== "" && (
-              <Text style={styles.congratsMessage}>
-                {congratulatoryMessage}
-              </Text>
-            )}
-            <Text style={styles.scoreText}>Score: {score}</Text>
-          </View>
-
           {/* Add extra space at bottom to account for navbar */}
           <View style={styles.bottomSpacer} />
         </ScrollView>
@@ -283,18 +286,28 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingHorizontal: 8,
   },
+  headerCenter: {
+    flex: 1,
+    alignItems: "center",
+    marginHorizontal: 8,
+  },
   backButton: {
     padding: 8,
+    width: 44,
   },
   switchWrapper: {
     flexDirection: "row",
     alignItems: "center",
+    width: 180,
+    flexShrink: 0,
+    flexWrap: "nowrap",
   },
   switchLabel: {
     color: "#E2E8F0",
     marginRight: 12,
     fontSize: 16,
     fontFamily: "Pharaoh",
+    flexShrink: 0,
   },
   switchContainer: {
     width: 48,
@@ -374,29 +387,34 @@ const styles = StyleSheet.create({
     borderColor: "rgba(56, 189, 248, 0.3)",
     padding: 6,
   },
-  infoContainer: {
-    marginTop: 24,
+  centeredInstructionContainer: {
+    alignItems: "center",
+  },
+  instructionRow: {
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 16,
   },
   letterInstruction: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: "600",
     color: "#F8FAFC",
-    marginBottom: 16,
+    marginBottom: 0,
     fontFamily: "Pharaoh",
   },
   congratsMessage: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: "bold",
     color: "#4ADE80",
-    marginBottom: 16,
+    marginBottom: 4,
   },
   scoreText: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: "bold",
     color: "#38BDF8",
-    marginVertical: 8,
+    marginLeft: 16,
+    marginBottom: 0,
   },
   bottomSpacer: {
     height: 80,
