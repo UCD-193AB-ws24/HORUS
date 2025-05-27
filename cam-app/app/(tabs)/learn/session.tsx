@@ -227,7 +227,7 @@ export default function Session() {
               </View>
             </View>
             <View style={styles.switchWrapper}>
-              <Text style={styles.switchLabel}>Show Image</Text>
+              <Text style={styles.switchLabel}>Show Letter</Text>
               <CustomSwitch value={showImage} onValueChange={setShowImage} />
             </View>
           </View>
