@@ -1,20 +1,35 @@
-import { Tabs } from "expo-router";
+import { Tabs, usePathname } from "expo-router";
+import { View, StyleSheet } from "react-native";
+import { HamburgerMenu } from "@/components/navigation/HamburgerMenu";
 import { TabBarIcon } from "@/components/navigation/TabBarIcon";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const pathname = usePathname();
+
+  // Hide header on session screen
+  const isSessionScreen = pathname.includes("/learn/session");
 
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
-        headerShown: false,
+        headerShown: !isSessionScreen,
+        headerStyle: {
+          backgroundColor: "transparent",
+        },
+        headerTransparent: true,
+        headerTitle: "",
+        headerRight: () => (
+          <View style={styles.headerRight}>
+            <HamburgerMenu />
+          </View>
+        ),
+        headerLeft: () => null,
         tabBarStyle: {
-          backgroundColor: "rgba(255, 255, 255, 0.6)",
-          backdropFilter: "blur(10px)",
-          borderTopColor: "rgba(0, 0, 0, 0.05)",
+          display: "none",
         },
       }}
     >
@@ -75,3 +90,11 @@ export default function TabLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  headerRight: {
+    position: "absolute",
+    right: 20,
+    top: 30,
+  },
+});
