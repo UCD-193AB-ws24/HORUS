@@ -17,7 +17,7 @@ import { SpeechToText } from "@/components/SpeechToText";
 import SigningTimingBar from "@/components/SigningTimingBar";
 import { useIsFocused } from "@react-navigation/native";
 
-let HOSTNAME = "https://0e7e-2600-1010-b13f-54d4-c866-d922-d45b-8039.ngrok-free.app/";
+let HOSTNAME = "https://910b-76-78-246-20.ngrok-free.app/";
 import Checkbox from "expo-checkbox";
 import { useAuth } from "@/lib/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
@@ -44,9 +44,8 @@ export default function CameraComponent() {
   const [signSigned, onChangeSignSigned] = useState("");
   const [signTranslated, onChangeSignTranslated] = useState("");
   const [isChecked, setChecked] = useState(false);
-  const [Portrait, setPortrait] = useState(true);
   const { user } = useAuth();
-
+  
   const cameraRef = useRef<CameraView | null>(null);
   const recordingTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -372,15 +371,6 @@ export default function CameraComponent() {
     setNeedHelp(false);
   };
 
-  const isPortrait = () => {
-    const dim = Dimensions.get("screen");
-    return dim.height >= dim.width;
-  };
-
-  Dimensions.addEventListener("change", () => {
-    setPortrait(isPortrait());
-  });
-
   return (
     <View style={styles.container}>
       <CameraView
@@ -388,7 +378,7 @@ export default function CameraComponent() {
         facing={facing}
         ref={cameraRef}
         mode="video"
-        videoQuality="720p"
+        videoQuality="480p"
       >
         {/* Signing Timing Bar */}
         <SigningTimingBar
@@ -398,166 +388,90 @@ export default function CameraComponent() {
           onRecordingPhaseChange={handleRecordingPhaseChange}
         />
 
-        {/* {recognizedWord && (
-          <View style={styles.overlay}>
-            <Text style={styles.gestureText}>Sign: {recognizedWord}</Text>
-          </View>
-        )} */}
-
-        {isVideoRecording && Portrait && (
-          <View style={styles.recordingIndicator}>
-            <View style={styles.recordingDot} />
-            <Text style={styles.recordingText}>Recording...</Text>
-          </View>
-        )}
-
-        {isVideoRecording && !Portrait && (
+        {/*Recording indicator*/}
+        {isVideoRecording && (
           <View style={styles.recordingIndicatorLandscape}>
             <View style={styles.recordingDot} />
             <Text style={styles.recordingText}>Recording...</Text>
           </View>
         )}
 
-        {Portrait && (
-          <View style={styles.buttonContainerPortrait}>
-            {/* Utility buttons moved to the top row */}
-            <View style={styles.utilityButtonsGroup}>
-              <TouchableOpacity
-                style={styles.utilityButton}
-                onPress={undoLastWord}
-              >
-                <Text style={styles.utilityButtonText}>Undo</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.utilityButton}
-                onPress={clearSentence}
-              >
-                <Text style={styles.utilityButtonText}>Clear</Text>
-              </TouchableOpacity>
-            </View>
-
-            {!isAudioRecording ? (
-              <TouchableOpacity
-                style={styles.button}
-                onPress={handleAudioRecordingToggle}
-              >
-                <Text style={styles.buttonText}>Record{"\n"}Audio</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                style={styles.button}
-                onPress={handleAudioRecordingToggle}
-              >
-                <Text style={styles.buttonText}>Stop{"\n"}Recording</Text>
-              </TouchableOpacity>
-            )}
-
-            {!isVideoRecording ? (
-              <TouchableOpacity
-                style={styles.button}
-                onPress={handleVideoRecordingToggle}
-              >
-                <AntDesign name="playcircleo" size={44} color="white" />
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                style={styles.button}
-                onPress={handleVideoRecordingToggle}
-              >
-                <AntDesign name="pausecircleo" size={44} color="white" />
-              </TouchableOpacity>
-            )}
-
+        
+        <View style={styles.recordingButtonContainerLandscape}>
+          {/*Undo and clear buttons*/}
+          {/* Utility buttons moved to the top row */}
+          <View style={styles.utilityButtonsGroup}>
             <TouchableOpacity
-              style={styles.button}
-              onPress={toggleCameraFacing}
+              style={styles.utilityButton}
+              onPress={undoLastWord}
             >
-              <AntDesign name="retweet" size={44} color="white" />
+              <Text style={styles.utilityButtonText}>Undo</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.button}
-              onPress={() => setNeedHelp(true)}
+              style={styles.utilityButton}
+              onPress={clearSentence}
             >
-              <Text style={styles.buttonText}>Report an Error</Text>
+              <Text style={styles.utilityButtonText}>Clear</Text>
             </TouchableOpacity>
           </View>
-        )}
+          {/*Start recording and stop recording buttons*/}
+          {!isVideoRecording ? (
+            <TouchableOpacity
+              style={styles.recordButtonLandscape}
+              onPress={handleVideoRecordingToggle}
+            >
+              <AntDesign name="playcircleo" size={44} color="white" />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.recordButtonLandscape}
+              onPress={handleVideoRecordingToggle}
+            >
+              <AntDesign name="pausecircleo" size={44} color="white" />
+            </TouchableOpacity>
+          )}
+          {/*Flip camera button*/}
+          <TouchableOpacity
+            style={styles.buttonLandscape}
+            onPress={toggleCameraFacing}
+          >
+            <AntDesign name="retweet" size={44} color="white" />
+          </TouchableOpacity>
+        </View>
 
-        {!Portrait && (
-          <View style={styles.recordingButtonContainerLandscape}>
-            {/* Utility buttons moved to the top row */}
-            <View style={styles.utilityButtonsGroup}>
-              <TouchableOpacity
-                style={styles.utilityButton}
-                onPress={undoLastWord}
-              >
-                <Text style={styles.utilityButtonText}>Undo</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.utilityButton}
-                onPress={clearSentence}
-              >
-                <Text style={styles.utilityButtonText}>Clear</Text>
-              </TouchableOpacity>
-            </View>
-
-            {!isVideoRecording ? (
-              <TouchableOpacity
-                style={styles.recordButtonLandscape}
-                onPress={handleVideoRecordingToggle}
-              >
-                <AntDesign name="playcircleo" size={44} color="white" />
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                style={styles.recordButtonLandscape}
-                onPress={handleVideoRecordingToggle}
-              >
-                <AntDesign name="pausecircleo" size={44} color="white" />
-              </TouchableOpacity>
-            )}
-
+        {/*Record audio buttons*/}
+        <View style={styles.audioButton}>
+          {!isAudioRecording ? (
             <TouchableOpacity
               style={styles.buttonLandscape}
-              onPress={toggleCameraFacing}
+              onPress={handleAudioRecordingToggle}
             >
-              <AntDesign name="retweet" size={44} color="white" />
+              <Text style={styles.buttonText}>Record{"\n"}Audio</Text>
             </TouchableOpacity>
-          </View>
-        )}
-        {!Portrait && (
-          <View style={styles.audioButton}>
-            {!isAudioRecording ? (
-              <TouchableOpacity
-                style={styles.buttonLandscape}
-                onPress={handleAudioRecordingToggle}
-              >
-                <Text style={styles.buttonText}>Record{"\n"}Audio</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                style={styles.buttonLandscape}
-                onPress={handleAudioRecordingToggle}
-              >
-                <Text style={styles.buttonText}>Stop</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-        {!Portrait && (
-          <View style={styles.helpButton}>
+          ) : (
             <TouchableOpacity
               style={styles.buttonLandscape}
-              onPress={() => setNeedHelp(true)}
+              onPress={handleAudioRecordingToggle}
             >
-              <Text style={styles.buttonText}>Report Error</Text>
+              <Text style={styles.buttonText}>Stop</Text>
             </TouchableOpacity>
-          </View>
-        )}
+          )}
+        </View>
+    
+       {/*Report and error button*/}
+        <View style={styles.helpButton}>
+          <TouchableOpacity
+            style={styles.buttonLandscape}
+            onPress={() => setNeedHelp(true)}
+          >
+            <Text style={styles.buttonText}>Report Error</Text>
+          </TouchableOpacity>
+        </View>
+     
       </CameraView>
+      
+      
       {transcriptionUri && (
         <SpeechToText
           audioUri={transcriptionUri}
@@ -584,105 +498,56 @@ export default function CameraComponent() {
         </View>
       )}
 
-      {Portrait && (
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={needHelp}
-          supportedOrientations={["portrait", "landscape"]}
-        >
-          <View style={styles.centeredView}>
-            <View style={styles.modalView}>
-              <Text style={styles.modalText}>
-                If you would like to report a wrong translation please fill out
-                the boxes below:
-              </Text>
-              <Text style={styles.modalText}>
-                {"\n"}What sign did you sign?
-              </Text>
-              <TextInput
-                style={styles.input}
-                onChangeText={onChangeSignSigned}
-                value={signSigned}
-              />
-              <Text style={styles.modalText}>What sign was translated?</Text>
-              <TextInput
-                style={styles.input}
-                onChangeText={onChangeSignTranslated}
-                value={signTranslated}
-              />
-              <Text style={styles.modalText}>
-                {"\n"}Would you like to include the video of you signing?
-              </Text>
-              <Checkbox
-                style={styles.checkbox}
-                value={isChecked}
-                onValueChange={setChecked}
-                color={isChecked ? "#4630EB" : undefined}
-              />
-            </View>
-            <View style={styles.modalButton}>
-              <TouchableOpacity style={styles.button} onPress={exitHelpPage}>
-                <Text style={styles.buttonText}>Exit</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.button} onPress={moveErrorVideo}>
-                <Text style={styles.buttonText}>Submit</Text>
-              </TouchableOpacity>
-            </View>
+      {/*Report and error pop up window*/}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={needHelp}
+        supportedOrientations={["portrait", "landscape"]}
+      >
+        <View style={styles.centeredView}>
+          <View style={styles.modalView}>
+            <Text style={styles.modalTextLandscape}>
+              If you would like to report a wrong translation please fill out
+              the boxes below:
+            </Text>
+            <Text style={styles.modalTextLandscape}>
+              {"\n"}What sign did you sign?
+            </Text>
+            <TextInput
+              style={styles.input}
+              onChangeText={onChangeSignSigned}
+              value={signSigned}
+            />
+            <Text style={styles.modalTextLandscape}>
+              What sign was translated?
+            </Text>
+            <TextInput
+              style={styles.input}
+              onChangeText={onChangeSignTranslated}
+              value={signTranslated}
+            />
+            <Text style={styles.modalTextLandscape}>
+              {"\n"}Would you like to include the video of you signing?
+            </Text>
+            <Checkbox
+              style={styles.checkbox}
+              value={isChecked}
+              onValueChange={setChecked}
+              color={isChecked ? "#4630EB" : undefined}
+            />
           </View>
-        </Modal>
-      )}
-
-      {!Portrait && (
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={needHelp}
-          supportedOrientations={["portrait", "landscape"]}
-        >
-          <View style={styles.centeredView}>
-            <View style={styles.modalView}>
-              <Text style={styles.modalTextLandscape}>
-                If you would like to report a wrong translation please fill out
-                the boxes below:
-              </Text>
-              <Text style={styles.modalTextLandscape}>
-                {"\n"}What sign did you sign?
-              </Text>
-              <TextInput
-                style={styles.input}
-                onChangeText={onChangeSignSigned}
-                value={signSigned}
-              />
-              <Text style={styles.modalTextLandscape}>
-                What sign was translated?
-              </Text>
-              <TextInput
-                style={styles.input}
-                onChangeText={onChangeSignTranslated}
-                value={signTranslated}
-              />
-              <Text style={styles.modalTextLandscape}>
-                {"\n"}Would you like to include the video of you signing?
-              </Text>
-              <Checkbox
-                style={styles.checkbox}
-                value={isChecked}
-                onValueChange={setChecked}
-                color={isChecked ? "#4630EB" : undefined}
-              />
-            </View>
-            <View style={styles.modalButton}>
-              <TouchableOpacity style={styles.button} onPress={exitHelpPage}>
-                <Text style={styles.buttonText}>Exit</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.button} onPress={moveErrorVideo}>
-                <Text style={styles.buttonText}>Submit</Text>
-              </TouchableOpacity>
-            </View>
+          <View style={styles.modalButton}>
+            <TouchableOpacity style={styles.button} onPress={exitHelpPage}>
+              <Text style={styles.buttonText}>Exit</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={moveErrorVideo}>
+              <Text style={styles.buttonText}>Submit</Text>
+            </TouchableOpacity>
           </View>
-        </Modal>
-      )}
+        </View>
+      </Modal>
+ 
     </View>
   );
 }
@@ -708,17 +573,6 @@ const styles = StyleSheet.create({
     color: "white",
     fontWeight: "bold",
   },
-  recordingIndicator: {
-    position: "absolute",
-    top: 20,
-    right: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(200, 0, 0, 0.5)",
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 15,
-  },
   recordingIndicatorLandscape: {
     position: "absolute",
     top: 20,
@@ -740,15 +594,6 @@ const styles = StyleSheet.create({
   recordingText: {
     color: "white",
     fontWeight: "bold",
-  },
-  buttonContainerPortrait: {
-    flexDirection: "row",
-    backgroundColor: "transparent",
-    justifyContent: "center",
-    alignItems: "flex-end",
-    position: "fixed",
-    top: 760,
-    marginBottom: 20,
   },
   recordingButtonContainerLandscape: {
     display: "flex",
@@ -922,12 +767,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
-  },
-  modalText: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "black",
-    textAlign: "center",
   },
   modalTextLandscape: {
     fontSize: 12,

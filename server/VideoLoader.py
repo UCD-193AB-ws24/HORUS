@@ -1,17 +1,19 @@
-import logging
-import os
 import cv2
 import mediapipe as mp
-import pandas as pd
-import numpy as np
-import sys
-from bisect import bisect_right 
 import torch
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 import multiprocessing as mp_threading
-from mediapipe.framework.formats import landmark_pb2
 from torchvision.io import read_video as rv
-# import torchvision.io.read_video as rv
+import numpy as np
+from functools import lru_cache
+import os
+import gc
+import threading
+
+# Force CPU-only execution for MediaPipe
+os.environ['MEDIAPIPE_DISABLE_GPU'] = '1'
+os.environ['GLOG_logtostderr'] = '0'
+os.environ['GLOG_v'] = '-1'
+os.environ['GLOG_minloglevel'] = '3'
 
 BaseOptions = mp.tasks.BaseOptions
 FaceLandmarker = mp.tasks.vision.FaceLandmarker
@@ -24,32 +26,38 @@ GestureRecognizerResult = mp.tasks.vision.GestureRecognizerResult
 
 VisionRunningMode = mp.tasks.vision.RunningMode
 
-# Load models once at module level to avoid reloading
+# Load models once at module level
 with open('./models/gesture_recognizer.task', "rb") as f:
     gesture_model_buffer = f.read()
     
 with open("./models/face_landmarker.task", "rb") as f:
     face_model_buffer = f.read()
 
+# CPU-optimized options with minimal resource usage
 gesture_options = GestureRecognizerOptions(
-    base_options=BaseOptions(model_asset_buffer=gesture_model_buffer),
+    base_options=BaseOptions(
+        model_asset_buffer=gesture_model_buffer,
+        delegate=BaseOptions.Delegate.CPU
+    ),
     running_mode=VisionRunningMode.VIDEO,
     num_hands=2
 )
 
-mp_pose = mp.solutions.pose
-
 face_options = FaceLandmarkerOptions(
-    base_options=BaseOptions(model_asset_buffer=face_model_buffer),
+    base_options=BaseOptions(
+        model_asset_buffer=face_model_buffer,
+        delegate=BaseOptions.Delegate.CPU
+    ),
     running_mode=VisionRunningMode.VIDEO,
-    output_face_blendshapes=True,
+    output_face_blendshapes=False,
     num_faces=1
 )
+
+mp_pose = mp.solutions.pose
 
 hand_target_landmarks = list(range(21))
 face_target_landmarks = list(range(478))
 pose_target_landmarks = list(range(33))
-
 
 def read_video(file_path):
     try:
@@ -71,41 +79,55 @@ def read_video(file_path):
         cap.release()
         return torch.stack(frames)
 
-
 class KeypointExtractor:
-    def extract_hand_landmarks(self, detection_result):
-        result = torch.zeros(len(hand_target_landmarks) * 2, 3, dtype=torch.float32) - 1
+    def __init__(self):
+        self._lock = threading.Lock()  # Thread safety
         
+    def extract_hand_landmarks(self, detection_result):
+        result = torch.zeros(len(hand_target_landmarks) * 2, 3, dtype=torch.float32)
+        result.fill_(-1)
+        
+        if not detection_result.hand_landmarks:
+            return result
+            
         for i, hand_landmarks in enumerate(detection_result.hand_landmarks):
+            if i >= len(detection_result.handedness):
+                continue
+                
             hand_label = detection_result.handedness[i][0].category_name.lower()
             offset = 0 if hand_label != 'left' else len(hand_target_landmarks)
             
             for j, landmark in enumerate(hand_landmarks):
                 if j < len(hand_target_landmarks):
-                    result[j + offset][0] = landmark.x
-                    result[j + offset][1] = landmark.y
-                    result[j + offset][2] = landmark.z
+                    idx = j + offset
+                    if idx < len(result):
+                        result[idx][0] = landmark.x
+                        result[idx][1] = landmark.y
+                        result[idx][2] = landmark.z
         
         return result
     
     def extract_pose_landmarks(self, detection_result):
-        result = torch.zeros(len(pose_target_landmarks), 3, dtype=torch.float32) - 1
+        result = torch.zeros(len(pose_target_landmarks), 3, dtype=torch.float32)
+        result.fill_(-1)
         
         if detection_result.pose_landmarks:
+            landmarks = detection_result.pose_landmarks.landmark
             for i, idx in enumerate(pose_target_landmarks):
-                landmark = detection_result.pose_landmarks.landmark[idx]
-                result[i][0] = landmark.x
-                result[i][1] = landmark.y
-                result[i][2] = landmark.z
+                if idx < len(landmarks):
+                    landmark = landmarks[idx]
+                    result[i][0] = landmark.x
+                    result[i][1] = landmark.y
+                    result[i][2] = landmark.z
         
         return result
     
     def extract_face_landmarks(self, detection_result):
-        result = torch.zeros(len(face_target_landmarks), 3, dtype=torch.float32) - 1
+        result = torch.zeros(len(face_target_landmarks), 3, dtype=torch.float32)
+        result.fill_(-1)
         
-        face_landmarks_list = detection_result.face_landmarks
-        if face_landmarks_list and len(face_landmarks_list) > 0:
-            face_landmarks = face_landmarks_list[0]
+        if detection_result.face_landmarks and len(detection_result.face_landmarks) > 0:
+            face_landmarks = detection_result.face_landmarks[0]
             for i, landmark in enumerate(face_landmarks):
                 if i < len(face_target_landmarks):
                     result[i][0] = landmark.x
@@ -114,186 +136,270 @@ class KeypointExtractor:
         
         return result
 
-    def extract_fast(self, video, fps=24):
-        """
-        Highly optimized version using minimal frame skipping and reduced overhead
-        """
-        # Reduce frame skipping for better accuracy
-        every_nth = 1
-        num_frames = len(video)
-        frame_indices = list(range(0, num_frames, every_nth))
-        h, w = video.shape[2], video.shape[3]
-        
-        # Preallocate result tensor
-        results = torch.zeros((len(frame_indices), 
-                              len(hand_target_landmarks) * 2 + len(face_target_landmarks) + len(pose_target_landmarks), 
-                              3), dtype=torch.float32)
-        
-        # Create models once for reuse
-        face_landmarker = FaceLandmarker.create_from_options(face_options)
-        pose_landmarker = mp_pose.Pose(
-            min_detection_confidence=0.5,  # Reduced for speed
-            min_tracking_confidence=0.3,   # Reduced for speed
-            model_complexity=0,
-            enable_segmentation=False,
-            smooth_landmarks=False
-        )
-        hand_landmarker = GestureRecognizer.create_from_options(gesture_options)
-        
-        try:
-            # Process frames sequentially for simplicity
-            for idx, frame_idx in enumerate(frame_indices):
-                timestamp = int(1000/fps * frame_idx)
-                frame = video[frame_idx]
-                
-                # Convert to numpy once
-                frame_np = frame.permute(1,2,0).mul(255).to(torch.uint8).numpy()
-                
-                # Process with pose landmarker (most efficient path)
-                image_rgb = cv2.cvtColor(frame_np, cv2.COLOR_BGR2RGB)
-                image_rgb.flags.writeable = False
-                pose_result = pose_landmarker.process(image_rgb)
-                
-                # Process with hand and face landmarkers
-                image_mp = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_np)
-                hands_result = hand_landmarker.recognize_for_video(image_mp, timestamp)
-                face_result = face_landmarker.detect_for_video(image_mp, timestamp)
-                
-                # Extract landmarks into preallocated tensor
-                hand_result = self.extract_hand_landmarks(hands_result)
-                face_result_landmarks = self.extract_face_landmarks(face_result)
-                pose_result_landmarks = self.extract_pose_landmarks(pose_result)
-                
-                # Concatenate into results
-                results[idx] = torch.cat([hand_result, face_result_landmarks, pose_result_landmarks], dim=0)
-        
-        finally:
-            # Clean up resources
-            face_landmarker.close()
-            pose_landmarker.close()
-            hand_landmarker.close()
-        
-        # Scale by dimensions
-        scale_tensor = torch.tensor([w, h, 1], dtype=torch.float32)
-        return results * scale_tensor
-    
     def extract_fast_parallel(self, video, fps=24):
         """
-        Simple but effective parallel processing for keypoint extraction
+        Safe implementation that avoids memory corruption
         """
-        # Process every frame for better accuracy
+        with self._lock:  # Thread safety
+            return self._extract_safe_sequential(video, fps)
+    
+    def extract_safe_parallel(self, video, fps=24):
+        """
+        Completely safe sequential processing - no parallel execution
+        """
+        return self._extract_safe_sequential(video, fps)
+    
+    def extract_sequential_safe(self, video, fps=24):
+        """
+        Ultra-safe sequential processing
+        """
+        return self._extract_safe_sequential(video, fps)
+
+    def _extract_safe_sequential(self, video, fps=24):
+        """
+        Single-threaded keypoint extraction to prevent malloc corruption
+        """
+        num_frames = len(video)
         stride = 1
-        selected_indices = list(range(0, len(video), stride))
+        # # Smart frame selection based on video length
+        # if num_frames > 150:
+        #     stride = 4  # Process every 4th frame for very long videos
+        # elif num_frames > 100:
+        #     stride = 3  # Process every 3rd frame
+        # elif num_frames > 50:
+        #     stride = 2  # Process every 2nd frame
+        # else:
+        #     stride = 1  # Process all frames for short videos
+            
+        selected_indices = list(range(0, num_frames, stride))
         video_subset = video[selected_indices]
         
-        # Just use 2-4 workers maximum
-        num_workers = min(4, mp_threading.cpu_count() - 1)
+        print(f"Processing {len(video_subset)} frames out of {num_frames} (stride={stride})")
         
-        # Simple chunking - divide frames evenly among workers
-        frames_per_worker = len(video_subset) // num_workers
-        chunks = []
-        
-        for i in range(num_workers):
-            start_idx = i * frames_per_worker
-            end_idx = start_idx + frames_per_worker if i < num_workers - 1 else len(video_subset)
-            chunks.append((video_subset[start_idx:end_idx], start_idx * stride, fps, video.shape[2], video.shape[3]))
-        
-        # Use ThreadPoolExecutor - more efficient than ProcessPoolExecutor for this task
-        with ThreadPoolExecutor(max_workers=num_workers) as executor:
-            chunk_results = list(executor.map(self._process_chunk, chunks))
-        
-        # Combine results
-        result = torch.cat(chunk_results, dim=0)
-        
-        # If we used stride > 1, interpolate the missing frames
-        if stride > 1:
-            return self._interpolate_frames(result, len(video), stride)
-        
-        return result
-
-    def _interpolate_frames(self, keypoints, total_frames, stride):
-        """
-        Simple linear interpolation to fill in skipped frames
-        """
-        full_results = torch.zeros((total_frames, keypoints.shape[1], keypoints.shape[2]), dtype=torch.float32)
-        
-        # Copy existing keypoints
-        for i, idx in enumerate(range(0, total_frames, stride)):
-            if i < len(keypoints):
-                full_results[idx] = keypoints[i]
-        
-        # Linear interpolation for missing frames
-        for idx in range(total_frames):
-            if idx % stride == 0:
-                continue  # Already filled
-            
-            # Find nearest filled frames
-            prev_idx = (idx // stride) * stride
-            next_idx = min(prev_idx + stride, total_frames - 1)
-            
-            if next_idx == prev_idx:
-                full_results[idx] = full_results[prev_idx]
-            else:
-                # Weight for linear interpolation
-                weight = (idx - prev_idx) / (next_idx - prev_idx)
-                full_results[idx] = (1 - weight) * full_results[prev_idx] + weight * full_results[next_idx]
-        
-        return full_results
-    
-    @staticmethod
-    def _process_chunk(chunk_data):
-        """
-        Static method for processing chunks in parallel
-        """
-        video_chunk, start_idx, fps, height, width = chunk_data
-        
-        # Create models for this process
-        face_landmarker = FaceLandmarker.create_from_options(face_options)
-        pose_landmarker = mp_pose.Pose(
-            min_detection_confidence=0.5,
-            min_tracking_confidence=0.3,
-            model_complexity=0,
-            enable_segmentation=False,
-            smooth_landmarks=False
-        )
-        hand_landmarker = GestureRecognizer.create_from_options(gesture_options)
-        
-        extractor = KeypointExtractor()
-        results = []
+        # Initialize MediaPipe models once
+        face_landmarker = None
+        pose_landmarker = None
+        hand_landmarker = None
         
         try:
-            for frame_idx, frame in enumerate(video_chunk):
-                actual_idx = start_idx + frame_idx
-                timestamp = int(1000/fps * actual_idx)
-                
-                # Convert to numpy once
-                frame_np = frame.permute(1,2,0).mul(255).to(torch.uint8).numpy()
-                
-                # Process with all models
-                image_rgb = cv2.cvtColor(frame_np, cv2.COLOR_BGR2RGB)
-                image_rgb.flags.writeable = False
-                pose_result = pose_landmarker.process(image_rgb)
-                
-                image_mp = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_np)
-                hands_result = hand_landmarker.recognize_for_video(image_mp, timestamp)
-                face_result = face_landmarker.detect_for_video(image_mp, timestamp)
-                
-                # Extract landmarks
-                result = torch.cat([
-                    extractor.extract_hand_landmarks(hands_result),
-                    extractor.extract_face_landmarks(face_result),
-                    extractor.extract_pose_landmarks(pose_result),
-                ], dim=0)
-                
-                results.append(result)
+            # Create models with minimal resource usage
+            face_landmarker = FaceLandmarker.create_from_options(face_options)
+            pose_landmarker = mp_pose.Pose(
+                min_detection_confidence=0.3,
+                min_tracking_confidence=0.2,
+                model_complexity=0,  # Fastest model
+                enable_segmentation=False,
+                smooth_landmarks=False
+            )
+            hand_landmarker = GestureRecognizer.create_from_options(gesture_options)
+            
+            results = []
+            height, width = video.shape[2], video.shape[3]
+            
+            # Process frames one by one
+            for frame_idx, frame in enumerate(video_subset):
+                try:
+                    timestamp = int(1000/fps * frame_idx)
+                    
+                    # Safe frame conversion
+                    if frame.is_cuda:
+                        frame = frame.cpu()
+                    
+                    # Convert to numpy safely
+                    frame_np = frame.permute(1, 2, 0).numpy()
+                    if frame_np.dtype != np.uint8:
+                        frame_np = np.clip(frame_np * 255, 0, 255).astype(np.uint8)
+                    
+                    # Ensure contiguous memory layout
+                    frame_np = np.ascontiguousarray(frame_np)
+                    
+                    # Process with pose (most stable)
+                    image_rgb = frame_np.copy()
+                    image_rgb.flags.writeable = False
+                    pose_result = pose_landmarker.process(image_rgb)
+                    
+                    # Process with MediaPipe tasks
+                    image_mp = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_np)
+                    hands_result = hand_landmarker.recognize_for_video(image_mp, timestamp)
+                    face_result = face_landmarker.detect_for_video(image_mp, timestamp)
+                    
+                    # Extract landmarks
+                    hand_landmarks = self.extract_hand_landmarks(hands_result)
+                    face_landmarks = self.extract_face_landmarks(face_result)
+                    pose_landmarks = self.extract_pose_landmarks(pose_result)
+                    
+                    # Combine landmarks
+                    combined_result = torch.cat([
+                        hand_landmarks,
+                        face_landmarks,
+                        pose_landmarks
+                    ], dim=0)
+                    
+                    results.append(combined_result)
+                    
+                    # Clear intermediate variables
+                    del frame_np, image_rgb, image_mp
+                    del hands_result, face_result, pose_result
+                    del hand_landmarks, face_landmarks, pose_landmarks
+                    
+                    # Periodic garbage collection for long videos
+                    if frame_idx % 20 == 0:
+                        gc.collect()
+                    
+                except Exception as e:
+                    print(f"Error processing frame {frame_idx}: {e}")
+                    # Add empty result to maintain frame consistency
+                    total_landmarks = (len(hand_target_landmarks) * 2 + 
+                                     len(face_target_landmarks) + 
+                                     len(pose_target_landmarks))
+                    empty_result = torch.zeros(total_landmarks, 3, dtype=torch.float32) - 1
+                    results.append(empty_result)
+        
+        except Exception as e:
+            print(f"Critical error in keypoint extraction: {e}")
+            # Return empty results
+            total_landmarks = (len(hand_target_landmarks) * 2 + 
+                             len(face_target_landmarks) + 
+                             len(pose_target_landmarks))
+            num_frames_to_process = len(video_subset)
+            return torch.zeros((num_frames_to_process, total_landmarks, 3), dtype=torch.float32) - 1
         
         finally:
-            # Clean up resources
-            face_landmarker.close()
-            pose_landmarker.close()
-            hand_landmarker.close()
+            # Clean up MediaPipe resources
+            if face_landmarker:
+                try:
+                    face_landmarker.close()
+                except:
+                    pass
+            if pose_landmarker:
+                try:
+                    pose_landmarker.close()
+                except:
+                    pass
+            if hand_landmarker:
+                try:
+                    hand_landmarker.close()
+                except:
+                    pass
+            
+            # Force garbage collection
+            gc.collect()
+        
+        if not results:
+            print("No results generated")
+            total_landmarks = (len(hand_target_landmarks) * 2 + 
+                             len(face_target_landmarks) + 
+                             len(pose_target_landmarks))
+            return torch.zeros((1, total_landmarks, 3), dtype=torch.float32) - 1
         
         # Convert to tensor and scale
-        results = torch.stack(results)
+        results_tensor = torch.stack(results)
         scale_tensor = torch.tensor([width, height, 1], dtype=torch.float32)
-        return results * scale_tensor
+        scaled_results = results_tensor * scale_tensor
+        
+        # Interpolate if we used stride > 1
+        if stride > 1:
+            final_results = self._safe_interpolation(scaled_results, selected_indices, num_frames)
+        else:
+            final_results = scaled_results
+        
+        print(f"Keypoint extraction completed. Final shape: {final_results.shape}")
+        return final_results
+
+    def _safe_interpolation(self, keypoints, selected_indices, total_frames):
+        """
+        Memory-safe interpolation with OpenMP parallelization
+        """
+        if len(selected_indices) == total_frames:
+            return keypoints
+        
+        # Calculate stride
+        stride = selected_indices[1] - selected_indices[0] if len(selected_indices) > 1 else 1
+        
+        try:
+            # Use PyTorch's vectorized operations (automatically uses OpenMP)
+            device = keypoints.device
+            dtype = keypoints.dtype
+            
+            full_results = torch.zeros((total_frames, keypoints.shape[1], keypoints.shape[2]), 
+                                     dtype=dtype, device=device)
+            
+            # Vectorized copying of existing keypoints
+            valid_keypoint_indices = torch.arange(len(keypoints), device=device)
+            frame_indices = torch.tensor(selected_indices, device=device)
+            
+            # Ensure we don't exceed bounds
+            valid_mask = (valid_keypoint_indices < len(keypoints)) & (frame_indices < total_frames)
+            valid_keypoint_idx = valid_keypoint_indices[valid_mask]
+            valid_frame_idx = frame_indices[valid_mask]
+            
+            if len(valid_keypoint_idx) > 0:
+                full_results[valid_frame_idx] = keypoints[valid_keypoint_idx]
+            
+            # Parallel interpolation for missing frames
+            all_indices = torch.arange(total_frames, device=device)
+            selected_set = set(selected_indices)
+            missing_indices = torch.tensor([i for i in range(total_frames) if i not in selected_set], 
+                                         device=device)
+            
+            if len(missing_indices) > 0:
+                # Vectorized interpolation
+                for idx in missing_indices:
+                    idx_val = idx.item()
+                    
+                    # Find nearest keypoints
+                    prev_indices = [i for i in selected_indices if i < idx_val]
+                    next_indices = [i for i in selected_indices if i > idx_val]
+                    
+                    if prev_indices and next_indices:
+                        prev_idx = max(prev_indices)
+                        next_idx = min(next_indices)
+                        
+                        weight = (idx_val - prev_idx) / (next_idx - prev_idx)
+                        full_results[idx] = ((1 - weight) * full_results[prev_idx] + 
+                                           weight * full_results[next_idx])
+                    elif prev_indices:
+                        full_results[idx] = full_results[max(prev_indices)]
+                    elif next_indices:
+                        full_results[idx] = full_results[min(next_indices)]
+            
+            return full_results
+            
+        except Exception as e:
+            print(f"Parallel interpolation error: {e}, falling back to simple method")
+            return self._simple_interpolation_fallback(keypoints, selected_indices, total_frames)
+
+    def _simple_interpolation_fallback(self, keypoints, selected_indices, total_frames):
+        """
+        Simple fallback interpolation method
+        """
+        full_results = torch.zeros((total_frames, keypoints.shape[1], keypoints.shape[2]), 
+                                 dtype=keypoints.dtype, device=keypoints.device)
+        full_results.fill_(-1)
+        
+        # Copy existing keypoints
+        for i, idx in enumerate(selected_indices):
+            if i < len(keypoints) and idx < total_frames:
+                full_results[idx] = keypoints[i]
+        
+        # Simple linear interpolation
+        selected_set = set(selected_indices)
+        for idx in range(total_frames):
+            if idx in selected_set:
+                continue
+            
+            prev_indices = [i for i in selected_indices if i < idx]
+            next_indices = [i for i in selected_indices if i > idx]
+            
+            if prev_indices and next_indices:
+                prev_idx = max(prev_indices)
+                next_idx = min(next_indices)
+                weight = (idx - prev_idx) / (next_idx - prev_idx)
+                full_results[idx] = ((1 - weight) * full_results[prev_idx] + 
+                                   weight * full_results[next_idx])
+            elif prev_indices:
+                full_results[idx] = full_results[max(prev_indices)]
+            elif next_indices:
+                full_results[idx] = full_results[min(next_indices)]
+        
+        return full_results

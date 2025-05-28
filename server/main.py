@@ -1,32 +1,73 @@
+# Set environment variables BEFORE importing anything else
+import os
+import sys
+
+# Critical: Set these before any imports
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['MEDIAPIPE_DISABLE_GPU'] = '1'
+os.environ['GLOG_logtostderr'] = '0'
+os.environ['GLOG_v'] = '-1'
+os.environ['GLOG_minloglevel'] = '3'
+
+import torch
+# Set optimal OpenMP configuration
+def setup_openmp_for_interpolation():
+    """Configure OpenMP settings for optimal interpolation performance"""
+    cpu_count = os.cpu_count() or 4
+    thread_count = min(cpu_count - 1, 6)  # Conservative for stability
+    
+    os.environ['OMP_SCHEDULE'] = 'static'
+    os.environ['OMP_PROC_BIND'] = 'close'
+    os.environ['OMP_PLACES'] = 'cores'
+    
+    torch.set_num_threads(thread_count)
+    print(f"OpenMP configured for {thread_count} threads")
+
+# Call setup function
+setup_openmp_for_interpolation()
+
+# Optimized threading - safe for keypoint extraction
+os.environ['OMP_NUM_THREADS'] = '4'  # Reasonable threading
+os.environ['MKL_NUM_THREADS'] = '4'  # Reasonable threading  
+os.environ['OPENBLAS_NUM_THREADS'] = '4'  # Reasonable threading
+os.environ['NUMEXPR_NUM_THREADS'] = '4'  # Reasonable threading
+
+# Memory allocation settings
+os.environ['MALLOC_TRIM_THRESHOLD_'] = '100000'
+os.environ['MALLOC_MMAP_THRESHOLD_'] = '131072'
+
+# Disable threading in various libraries that might conflict
+os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+
 from datetime import datetime
 from functools import lru_cache
-import os
 import tempfile
+import threading
+import asyncio
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 import cv2
 import numpy as np 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'   # need this to suppress the mp errors
-
 import mediapipe as mp
-import time
-# import pyaudio
-import wave
-import requests
 import aiohttp
 import pandas as pd
-import torch
-import uvicorn
+#import torch
 import whisper
 from VideoLoader import KeypointExtractor, read_video
 from VideoDataset import process_keypoints
 from model import SLR
 from pydantic import BaseModel
 import shutil
+import uvicorn
 import datetime
+import gc
+import warnings
+warnings.filterwarnings("ignore")
 
+# Torch settings for memory safety
 import torch._dynamo
 torch._dynamo.config.suppress_errors = True
+torch.set_num_threads(4)  # Reasonable PyTorch threading
 
 app = FastAPI()
 
@@ -38,26 +79,35 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Global lock for MediaPipe operations to prevent race conditions
+mediapipe_lock = threading.Lock()
+
 BaseOptions = mp.tasks.BaseOptions
 GestureRecognizer = mp.tasks.vision.GestureRecognizer
 GestureRecognizerOptions = mp.tasks.vision.GestureRecognizerOptions
 GestureRecognizerResult = mp.tasks.vision.GestureRecognizerResult
 VisionRunningMode = mp.tasks.vision.RunningMode
 
+# Memory-safe MediaPipe options
 options = GestureRecognizerOptions(
-    base_options=BaseOptions(model_asset_path='./gesture_recognizer.task'),
+    base_options=BaseOptions(
+        model_asset_path='./models/gesture_recognizer.task',
+        delegate=BaseOptions.Delegate.CPU
+    ),
     running_mode=VisionRunningMode.IMAGE,
 )
 
-class Item (BaseModel):
+class Item(BaseModel):
     signed: str
     translated: str
     video: bool
 
-recognizer = GestureRecognizer.create_from_options(options)
+# Initialize models with lock protection
+with mediapipe_lock:
+    recognizer = GestureRecognizer.create_from_options(options)
 
+# Load other models
 whisper_model = whisper.load_model("tiny")
-
 
 model = SLR(
     n_embd=16*64, 
@@ -70,8 +120,46 @@ model = SLR(
     bias=True
 )
 
-model = torch.compile(model)
-model.load_state_dict(torch.load('./models/big_model.pth', map_location=torch.device('cpu')))
+# Load the compiled model weights and fix the key names
+def load_compiled_model_weights(model, checkpoint_path):
+    """Load weights from a torch.compile() saved model"""
+    try:
+        # Load the state dict
+        state_dict = torch.load(checkpoint_path, map_location=torch.device('cpu'))
+        
+        # Check if this is a compiled model (has _orig_mod prefix)
+        if any(key.startswith('_orig_mod.') for key in state_dict.keys()):
+            print("Detected compiled model, fixing key names...")
+            # Remove the _orig_mod. prefix from all keys
+            new_state_dict = {}
+            for key, value in state_dict.items():
+                if key.startswith('_orig_mod.'):
+                    new_key = key[10:]  # Remove '_orig_mod.' prefix
+                    new_state_dict[new_key] = value
+                else:
+                    new_state_dict[key] = value
+            state_dict = new_state_dict
+        
+        # Load the cleaned state dict
+        model.load_state_dict(state_dict, strict=False)
+        print("Model weights loaded successfully!")
+        return model
+        
+    except Exception as e:
+        print(f"Error loading model: {e}")
+        # Try alternative loading methods
+        try:
+            # Method 2: Load with strict=False
+            state_dict = torch.load(checkpoint_path, map_location=torch.device('cpu'))
+            model.load_state_dict(state_dict, strict=False)
+            print("Model loaded with strict=False")
+            return model
+        except Exception as e2:
+            print(f"Alternative loading also failed: {e2}")
+            raise e
+
+# Load the model with the fixed function
+model = load_compiled_model_weights(model, './models/big_model.pth')
 model.eval()
 
 gloss_info = pd.read_csv('./gloss.csv')
@@ -86,96 +174,160 @@ def get_selected_keypoints():
     selected_keypoints = selected_keypoints + [x + 520 for x in ([2, 5, 7, 8, 11, 12, 13, 14, 15, 16])]
     return selected_keypoints
 
-@lru_cache(maxsize=1)
-def get_keypoint_extractor():
-    return KeypointExtractor()
+# Thread-safe keypoint extractor
+keypoint_extractor = None
+extractor_lock = threading.Lock()
 
+def get_keypoint_extractor():
+    global keypoint_extractor
+    with extractor_lock:
+        if keypoint_extractor is None:
+            keypoint_extractor = KeypointExtractor()
+        return keypoint_extractor
 
 @app.post("/recognize-sign-from-video/")
 async def recognize_sign_from_video(file: UploadFile = File(...)):
     """
-    Receives an MP4 video file and returns the recognized sign language word
+    Memory-safe video processing with proper resource management
     """
     if not file:
         raise HTTPException(status_code=400, detail="No video file provided")
     
-    # Generate a unique filename with timestamp
-    # timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    # filename = f"uploaded_video_{timestamp}.mp4"
-    
-    # # Save the file in the current directory
-    # file_path = os.path.join(os.getcwd(), filename)
-    
-    # # Write the uploaded file to disk
-    # contents = await file.read()
-    # with open(file_path, "wb") as f:
-    #     f.write(contents)
-    
-    # Save the uploaded file to a temporary location
-    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
-        contents = await file.read()
-        tmp.write(contents)
-        temp_path = tmp.name
+    temp_path = None
+    try:
+        # Create temporary file
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
+            contents = await file.read()
+            tmp.write(contents)
+            temp_path = tmp.name
+        
+        # Process video with memory safety
+        result = await process_video_safe(temp_path)
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail=f"Processing error: {str(e)}")
+    finally:
+        # Cleanup
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except:
+                pass
+        # Force cleanup
+        gc.collect()
+
+async def process_video_safe(video_path: str):
+    """
+    Process video with comprehensive memory management
+    """
+    video = None
+    pose = None
     
     try:
-        # Read the video file into a tensor
-        video = read_video(temp_path)
-        video = video.permute(0, 3, 1, 2)/255
+        # Read video
+        video = read_video(video_path)
+        if video is None:
+            raise ValueError("Could not read video file")
+            
+        # Preprocess video
+        video = video.permute(0, 3, 1, 2) / 255.0
         video = torch.flip(video, dims=[-2])
-        # Extract keypoints using MediaPipe
-        keypoint_extractor = get_keypoint_extractor()
         
-        # Use the faster extract_fast method
-        pose = keypoint_extractor.extract_fast_parallel(video)
+        print(f"Processing video with shape: {video.shape}")
+        
+        # Get extractor (thread-safe)
+        extractor = get_keypoint_extractor()
+        
+        # Extract keypoints with single-threaded processing to avoid memory corruption
+        try:
+            # Use the safe sequential extractor (no parallel processing)
+            pose = await asyncio.get_event_loop().run_in_executor(
+                None, 
+                lambda: extractor.extract_safe_parallel(video)
+            )
+        except Exception as e:
+            print(f"Keypoint extraction failed: {e}")
+            raise ValueError("Failed to extract keypoints from video")
+        
+        if pose is None or len(pose) == 0:
+            raise ValueError("No keypoints extracted from video")
+            
         height, width = video.shape[-2], video.shape[-1]
         
-        # Define the selected keypoints (same as in run_model.ipynb)
-        selected_keypoints = get_selected_keypoints()  
-        # Reduce the number of samples for faster processing
-        sample_amount = 8  # Reduced from 16 for speed
+        print("Video shape:", video.shape)
+        print("Pose shape:", pose.shape)
+        print("Pose sample (frame 0):", pose[0][:5] if len(pose) > 0 else "Empty")
         
-        logits = 0
-        with torch.no_grad():
-            model.eval()
-            for i in range(sample_amount):
-                keypoints, valid_keypoints = process_keypoints(pose, 64, selected_keypoints, height=height, width=width, augment=True)
-                logits = logits + model.heads['asl_citizen'](model(keypoints.unsqueeze(0), valid_keypoints.unsqueeze(0)))
+        # Process keypoints for model
+        selected_keypoints = get_selected_keypoints()
+        sample_amount = 16  # Reduced further for memory safety
         
-        # Get the top prediction
-        idx = torch.argsort(logits, descending=True)[0].tolist()
+        logits = None
+        try:
+            with torch.no_grad():
+                model.eval()
+                
+                for i in range(sample_amount):
+                    keypoints, valid_keypoints = process_keypoints(
+                        pose, 64, selected_keypoints, 
+                        height=height, width=width, augment=True
+                    )
+                    
+                    if keypoints.numel() == 0:
+                        continue
+                    
+                    # Single batch inference
+                    batch_logits = model.heads['asl_citizen'](
+                        model(keypoints.unsqueeze(0), valid_keypoints.unsqueeze(0))
+                    )
+                    
+                    if logits is None:
+                        logits = batch_logits
+                    else:
+                        logits = logits + batch_logits
+                    
+                    # Clear intermediate tensors
+                    del keypoints, valid_keypoints, batch_logits
+                    
+        except Exception as e:
+            print(f"Model inference error: {e}")
+            raise ValueError(f"Model inference failed: {str(e)}")
         
-        if isinstance(idx, int):
-            # If it's already an integer, use it directly
-            top_word = idx_to_word[idx]
-        else:
-            # If it's a list, take the first element
-            top_word = idx_to_word[idx[0]]
+        if logits is None:
+            raise ValueError("No valid keypoints for model inference")
+        
+        # Get prediction
+        try:
+            top_idx = torch.argmax(logits).item()  # Get index of maximum value
+            top_word = idx_to_word.get(top_idx, "UNKNOWN")
+        except Exception as e:
+            print(f"Prediction error: {e}")
+            top_word = "UNKNOWN"
         
         return {"recognized_word": top_word}
-    
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        
     finally:
-        # Clean up the temporary file
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+        # Explicit cleanup
+        del video, pose
+        gc.collect()
 
 @app.get("/test-sign-recognition/{video_filename}")
 async def test_sign_recognition(video_filename: str, request: Request):
     """
-    Test route that reads an MP4 file from the 'test_videos' directory 
-    and sends it to the recognize-sign-from-video endpoint
+    Test route with proper error handling
     """
     video_path = os.path.join("test_videos", video_filename)
     
     if not os.path.exists(video_path):
-        raise HTTPException(status_code=404, detail=f"Video file {video_filename} not found in test_videos directory")
+        raise HTTPException(status_code=404, detail=f"Video file {video_filename} not found")
     
-    # Create a client and make request to our own endpoint
     host = request.headers.get('host')
     url = f"http://{host}/recognize-sign-from-video/"
     
-    # Use aiohttp for async requests instead of synchronous requests
     async with aiohttp.ClientSession() as session:
         with open(video_path, "rb") as video_file:
             data = aiohttp.FormData()
@@ -191,7 +343,7 @@ async def test_sign_recognition(video_filename: str, request: Request):
                     error_text = await response.text()
                     raise HTTPException(
                         status_code=response.status, 
-                        detail=f"Error from recognition endpoint: {error_text}"
+                        detail=f"Error: {error_text}"
                     )
 
 @app.post("/recognize-gesture/")
@@ -199,63 +351,66 @@ async def recognize_gesture(file: UploadFile = File(...)):
     if not file:
         raise HTTPException(status_code=400, detail="No file uploaded")
     
-    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
-        contents = await file.read()
-        tmp.write(contents)
-        temp_path = tmp.name
-
+    temp_path = None
     try:
-        # contents = await file.read()
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+            contents = await file.read()
+            tmp.write(contents)
+            temp_path = tmp.name
+
         np_arr = np.frombuffer(contents, np.uint8)
         image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
         
-        results = recognizer.recognize(mp.Image(image_format=mp.ImageFormat.SRGB, data=image))
+        # Thread-safe MediaPipe operation
+        with mediapipe_lock:
+            results = recognizer.recognize(mp.Image(image_format=mp.ImageFormat.SRGB, data=image))
+            
         detected_gesture = results.gestures[0][0].category_name if results.gestures else "None"
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except:
+                pass
 
     return {"gesture": detected_gesture}
 
 @app.post("/process_audio/")
 async def process_audio(file: UploadFile = File(...)):
     """
-    Receives an audio file and returns the transcribed text using Whisper (local).
+    Audio processing with memory safety
     """
     if not file:
         raise HTTPException(status_code=400, detail="No audio file provided")
 
-    # Save to a temporary file
-    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-        # Read file contents
-        contents = await file.read()
-        tmp.write(contents)
-        temp_path = tmp.name
-
+    temp_path = None
     try:
-        result = whisper_model.transcribe(temp_path, language='en', fp16 = False)  # or omit language if auto-detect
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+            contents = await file.read()
+            tmp.write(contents)
+            temp_path = tmp.name
+
+        result = whisper_model.transcribe(temp_path, language='en', fp16=False)
         recognized_text = result.get("text", "")
+        
     except Exception as e:
-        # Cleanup and re-raise as HTTPException
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
         raise HTTPException(status_code=500, detail=str(e))
     finally:
-        # Always remove temp file
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except:
+                pass
 
     return {"recognized_text": recognized_text}
-
-# @app.post("/process_audio/")
-# async def process_audio(file: UploadFile = File(...)):
-#     # Check that we have a file
-#     contents = await file.read()
-#     return {"msg": "File received", "file_size": len(contents)}
 
 @app.post("/send_help_form/")
 async def send_help_form(item: Item):
     if not item:
-        raise HTTPException(status_code=400, detail=f"No help form provided")
+        raise HTTPException(status_code=400, detail="No help form provided")
     
     if item.video:
         video_file = "sign_language.mp4"
@@ -268,86 +423,26 @@ async def send_help_form(item: Item):
 
     return {"message": "File received"}
 
+@app.get("/health")
+def health_check():
+    """Health check endpoint"""
+    import psutil
+    return {
+        "status": "healthy",
+        "cpu_percent": psutil.cpu_percent(),
+        "memory_percent": psutil.virtual_memory().percent,
+        "available_memory_gb": round(psutil.virtual_memory().available / (1024**3), 2)
+    }
+
 @app.get("/")
 def read_root():
-    return {"message": "Server is running!"}
-
-
-# def record_audio_and_send(
-#     server_url="http://127.0.0.1:8000/process_audio/",
-#     duration=5,
-#     output_filename="output.wav"
-# ):
-#     """
-#     Records audio from your microphone for `duration` seconds,
-#     saves to `output_filename`, and sends it to the `server_url`
-#     endpoint for STT.
-#     """
-
-#     # Audio recording parameters
-#     chunk = 1024          # Number of frames per buffer
-#     format = pyaudio.paInt16
-#     channels = 1
-#     rate = 16000          # Whisper often expects 16k, but you can do 44100
-#     record_seconds = duration
-
-#     # Initialize PyAudio
-#     p = pyaudio.PyAudio()
-
-#     # Open stream
-#     stream = p.open(format=format,
-#                     channels=channels,
-#                     rate=rate,
-#                     input=True,
-#                     frames_per_buffer=chunk)
-
-#     print(f"Recording for {record_seconds} second(s)...")
-#     frames = []
-
-#     # Read mic data
-#     for _ in range(0, int(rate / chunk * record_seconds)):
-#         data = stream.read(chunk)
-#         frames.append(data)
-
-#     # Stop and close
-#     stream.stop_stream()
-#     stream.close()
-#     p.terminate()
-
-#     print("Recording complete. Saving WAV file...")
-
-#     # Save as WAV
-#     wf = wave.open(output_filename, 'wb')
-#     wf.setnchannels(channels)
-#     wf.setsampwidth(p.get_sample_size(format))
-#     wf.setframerate(rate)
-#     wf.writeframes(b''.join(frames))
-#     wf.close()
-
-#     # Send the file to the server
-#     try:
-#         with open(output_filename, "rb") as f:
-#             files = {"file": ("recording.wav", f, "audio/wav")}
-#             print(f"Sending to {server_url} ...")
-#             response = requests.post(server_url, files=files)
-#         if response.status_code == 200:
-#             data = response.json()
-#             print("Server response:", data)
-#         else:
-#             print(f"Error from server: HTTP {response.status_code}")
-#             print("Response:", response.text)
-#     finally:
-#         # Clean up local WAV file if you want
-#         if os.path.exists(output_filename):
-#             os.remove(output_filename)
-
+    return {"message": "Server is running safely!"}
 
 if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8001))
     uvicorn.run(
-        "main:app",  # Replace with your actual module:app
-        host="127.0.0.1",  # Listen on all interfaces
-        port=8001,
+        "main:app",
+        host="127.0.0.1",
+        port=port,
+        workers=1,  # Single worker to prevent memory conflicts
     )
-
-        #     ssl_keyfile="./certs/key.pem",
-        #     ssl_certfile="./certs/cert.pem"

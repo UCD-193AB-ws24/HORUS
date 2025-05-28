@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { CameraView, CameraType, useCameraPermissions } from "expo-camera";
 
-
-let HOSTNAME = 'https://0e7e-2600-1010-b13f-54d4-c866-d922-d45b-8039.ngrok-free.app/'
+let HOSTNAME =
+  "https://0e7e-2600-1010-b13f-54d4-c866-d922-d45b-8039.ngrok-free.app/";
 
 type Props = {
   onDetect(letter: string): void;
@@ -44,7 +44,7 @@ export default function LessonCamera({ onDetect, intervalMs = 300 }: Props) {
         formData.append("file", {
           uri: photo.uri,
           name: "photo.jpg",
-          type: "image/jpg"
+          type: "image/jpg",
         } as any);
 
         const res = await fetch(HOSTNAME + "recognize-gesture/", {
@@ -56,7 +56,7 @@ export default function LessonCamera({ onDetect, intervalMs = 300 }: Props) {
         if (!res.ok) {
           const errorText = await res.text();
           console.error(errorText);
-        };
+        }
 
         const { gesture } = (await res.json()) as { gesture?: string };
         if (gesture && gesture !== "None") onDetect(gesture.toUpperCase());
@@ -75,5 +75,12 @@ export default function LessonCamera({ onDetect, intervalMs = 300 }: Props) {
 
   if (!permission?.granted) return <View style={{ flex: 1 }} />;
 
-  return <CameraView ref={cameraRef} style={{ flex: 1 }} facing={facing} />;
+  return (
+    <CameraView
+      ref={cameraRef}
+      style={{ flex: 1 }}
+      facing={facing}
+      animateShutter={false}
+    />
+  );
 }

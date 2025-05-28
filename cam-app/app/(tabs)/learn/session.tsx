@@ -1,8 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, Image, Switch, Pressable } from "react-native";
+import {
+  View,
+  Text,
+  Image,
+  Pressable,
+  StyleSheet,
+  StatusBar,
+  ScrollView,
+  TouchableWithoutFeedback,
+  Keyboard,
+  SafeAreaView,
+  Animated,
+} from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useIsFocused } from "@react-navigation/native";
-import tw from "twrnc";
 import useAlphabetLesson from "@/hooks/useAlphabetLesson";
 import LessonCamera from "@/components/LessonCamera";
 import { useAuth } from "@/lib/AuthContext";
@@ -46,6 +57,65 @@ const CONGRATULATORY_MESSAGES = [
   "You're a natural!",
   "Excellent work!",
 ];
+
+// Custom Switch Component
+function CustomSwitch({
+  value,
+  onValueChange,
+}: {
+  value: boolean;
+  onValueChange: (value: boolean) => void;
+}) {
+  const translateX = useRef(new Animated.Value(value ? 22 : 2)).current;
+
+  const toggleSwitch = () => {
+    const newValue = !value;
+    Animated.spring(translateX, {
+      toValue: newValue ? 22 : 2,
+      bounciness: 4,
+      speed: 12,
+      useNativeDriver: true,
+    }).start();
+    onValueChange(newValue);
+  };
+
+  return (
+    <Pressable
+      style={[
+        styles.switchContainer,
+        value ? styles.switchActive : styles.switchInactive,
+      ]}
+      onPress={toggleSwitch}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value }}
+    >
+      <Animated.View
+        style={[
+          styles.switchThumb,
+          value ? styles.switchThumbActive : styles.switchThumbInactive,
+          { transform: [{ translateX }] },
+        ]}
+      >
+        {value && (
+          <Ionicons
+            name="eye"
+            size={12}
+            color="#fff"
+            style={styles.switchIcon}
+          />
+        )}
+        {!value && (
+          <Ionicons
+            name="eye-off"
+            size={12}
+            color="#64748B"
+            style={styles.switchIcon}
+          />
+        )}
+      </Animated.View>
+    </Pressable>
+  );
+}
 
 export default function Session() {
   const router = useRouter();
@@ -123,61 +193,230 @@ export default function Session() {
   );
 
   return (
-    <View style={tw`flex-1 bg-white dark:bg-black p-4`}>
-      <View style={tw`flex-row justify-between items-center mt-8`}>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => router.back()}
-          style={tw`p-2`}
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      <View style={styles.backgroundGradient} />
+
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <Ionicons name="arrow-back" size={28} color="#0a7ea4" />
-        </Pressable>
-        <View style={tw`flex-row items-center`}>
-          <Text style={tw`text-gray-800 dark:text-gray-100 mr-2`}>
-            Show image
-          </Text>
-          <Switch
-            value={showImage}
-            onValueChange={setShowImage}
-            trackColor={{ false: "#767577", true: "#81b0ff" }}
-            thumbColor={showImage ? "#f5dd4b" : "#f4f3f4"}
-          />
-        </View>
-      </View>
+          <View style={styles.header}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.back()}
+              style={styles.backButton}
+            >
+              <Ionicons name="arrow-back" size={28} color="#38BDF8" />
+            </Pressable>
+            <View style={styles.headerCenter}>
+              <View style={styles.centeredInstructionContainer}>
+                <View style={styles.instructionRow}>
+                  <Text style={styles.letterInstruction}>
+                    Sign the letter {currentLetter}
+                  </Text>
+                  <Text style={styles.scoreText}>Score: {score}</Text>
+                </View>
+                {congratulatoryMessage !== "" && (
+                  <Text style={styles.congratsMessage}>
+                    {congratulatoryMessage}
+                  </Text>
+                )}
+              </View>
+            </View>
+            <View style={styles.switchWrapper}>
+              <Text style={styles.switchLabel}>Show Letter</Text>
+              <CustomSwitch value={showImage} onValueChange={setShowImage} />
+            </View>
+          </View>
 
-      <View style={tw`self-center w-4/5 h-3/5 overflow-hidden rounded-xl`}>
-        {isFocused && <LessonCamera onDetect={handleDetect} />}
-      </View>
-
-      {showImage && (
-        <View style={tw`mt-4 items-center`}>
-          <Image
-            source={signImages[currentLetter.toLowerCase()]}
-            style={tw`w-24 h-24 rounded-lg`}
-            resizeMode="contain"
-          />
-        </View>
-      )}
-
-      <View style={tw`mt-6 items-center`}>
-        <Text
-          style={tw`text-xl font-semibold text-gray-800 dark:text-gray-100`}
-        >
-          Sign the letter {currentLetter}
-        </Text>
-        {congratulatoryMessage !== "" && (
-          <Text
-            style={tw`text-lg font-bold text-green-600 dark:text-green-400 mt-4`}
+          <View
+            style={
+              showImage ? styles.sideBySideContainer : styles.centerContainer
+            }
           >
-            {congratulatoryMessage}
-          </Text>
-        )}
-        <Text
-          style={tw`text-lg font-bold text-gray-800 dark:text-gray-100 mt-4`}
-        >
-          Score: {score}
-        </Text>
-      </View>
-    </View>
+            <View
+              style={[
+                styles.cameraContainer,
+                showImage && styles.cameraContainerSmaller,
+              ]}
+            >
+              {isFocused && <LessonCamera onDetect={handleDetect} />}
+            </View>
+
+            {showImage && (
+              <View style={styles.signImageContainer}>
+                <Image
+                  source={signImages[currentLetter.toLowerCase()]}
+                  style={styles.signImage}
+                  resizeMode="contain"
+                />
+              </View>
+            )}
+          </View>
+
+          {/* Add extra space at bottom to account for navbar */}
+          <View style={styles.bottomSpacer} />
+        </ScrollView>
+      </TouchableWithoutFeedback>
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#0A1128",
+  },
+  scrollContent: {
+    flexGrow: 1,
+    padding: 16,
+  },
+  backgroundGradient: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#0A1128",
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 10,
+    marginBottom: 16,
+    paddingHorizontal: 8,
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: "center",
+    marginHorizontal: 8,
+  },
+  backButton: {
+    padding: 8,
+    width: 44,
+  },
+  switchWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: 180,
+    flexShrink: 0,
+    flexWrap: "nowrap",
+  },
+  switchLabel: {
+    color: "#E2E8F0",
+    marginRight: 12,
+    fontSize: 16,
+    fontFamily: "Pharaoh",
+    flexShrink: 0,
+  },
+  switchContainer: {
+    width: 48,
+    height: 26,
+    borderRadius: 20,
+    justifyContent: "center",
+    padding: 2,
+  },
+  switchInactive: {
+    backgroundColor: "rgba(71, 85, 105, 0.7)",
+    borderWidth: 1,
+    borderColor: "rgba(100, 116, 139, 0.5)",
+  },
+  switchActive: {
+    backgroundColor: "rgba(56, 189, 248, 0.25)",
+    borderWidth: 1,
+    borderColor: "rgba(56, 189, 248, 0.7)",
+  },
+  switchThumb: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  switchThumbInactive: {
+    backgroundColor: "#E2E8F0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  switchThumbActive: {
+    backgroundColor: "#38BDF8",
+    shadowColor: "#38BDF8",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 3,
+    elevation: 5,
+  },
+  switchIcon: {
+    alignSelf: "center",
+  },
+  centerContainer: {
+    alignItems: "center",
+  },
+  sideBySideContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  cameraContainer: {
+    alignSelf: "center",
+    width: "90%",
+    height: 300,
+    overflow: "hidden",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(56, 189, 248, 0.3)",
+  },
+  cameraContainerSmaller: {
+    width: "70%",
+    height: 250,
+  },
+  signImageContainer: {
+    width: "40%",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  signImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 12,
+    backgroundColor: "rgba(15, 23, 42, 0.3)",
+    borderWidth: 1,
+    borderColor: "rgba(56, 189, 248, 0.3)",
+    padding: 6,
+  },
+  centeredInstructionContainer: {
+    alignItems: "center",
+  },
+  instructionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 16,
+  },
+  letterInstruction: {
+    fontSize: 24,
+    fontWeight: "600",
+    color: "#F8FAFC",
+    marginBottom: 0,
+    fontFamily: "Pharaoh",
+  },
+  congratsMessage: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#4ADE80",
+    marginBottom: 4,
+  },
+  scoreText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#38BDF8",
+    marginLeft: 16,
+    marginBottom: 0,
+  },
+  bottomSpacer: {
+    height: 80,
+  },
+});
