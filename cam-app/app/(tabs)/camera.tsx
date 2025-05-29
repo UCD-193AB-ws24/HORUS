@@ -434,10 +434,10 @@ export default function CameraComponent() {
           )}
           {/*Flip camera button*/}
           <TouchableOpacity
-            style={styles.buttonLandscape}
+            style={styles.flipCameraButton}
             onPress={toggleCameraFacing}
           >
-            <AntDesign name="retweet" size={44} color="white" />
+            <AntDesign name="retweet" size={40} color="white" />
           </TouchableOpacity>
         </View>
 
@@ -448,14 +448,14 @@ export default function CameraComponent() {
               style={styles.buttonLandscape}
               onPress={handleAudioRecordingToggle}
             >
-              <Ionicons name="mic" size={44} color="white" />
+              <Ionicons name="mic" size={40} color="white" />
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
               style={styles.buttonLandscape}
               onPress={handleAudioRecordingToggle}
             >
-              <Ionicons name="mic" size={44} color="red" />
+              <Ionicons name="mic" size={40} color="red" />
             </TouchableOpacity>
           )}
         </View>
@@ -466,7 +466,7 @@ export default function CameraComponent() {
             style={styles.buttonLandscape}
             onPress={() => setNeedHelp(true)}
           >
-            <AntDesign name="customerservice" size={44} color="white" />
+            <AntDesign name="customerservice" size={40  } color="white" />
           </TouchableOpacity>
         </View>
      
@@ -600,10 +600,10 @@ const styles = StyleSheet.create({
     display: "flex",
     flexDirection: "column",
     backgroundColor: "transparent",
-    justifyContent: "space-between",
+    justifyContent: "space-evenly",
     alignItems: "flex-end",
     position: "fixed",
-    gap: 38,
+    gap: 46,
     marginTop: 20,
     marginLeft: 10,
   },
@@ -611,7 +611,7 @@ const styles = StyleSheet.create({
     width: 75,
     height: 80,
     position: "absolute",
-    bottom: 10,
+    bottom: 0,
     left: 5,
   },
   helpButton: {
@@ -639,8 +639,8 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   buttonLandscape: {
-    width: 80,
-    height: 80,
+    width: 60,
+    height: 60,
     borderRadius: 40,
     backgroundColor: "rgba(0, 0, 0, 0.3)",
     justifyContent: "center",
@@ -653,10 +653,29 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    left: 10,
+  },
+  flipCameraButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 40,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    right: 15,
   },
   recordButtonLandscape: {
-    width: 80,
+    width: 60,
     height: 120,
+    right: 15,
     borderRadius: 40,
     backgroundColor: "rgba(0, 0, 0, 0.3)",
     justifyContent: "center",
@@ -690,6 +709,7 @@ const styles = StyleSheet.create({
   utilityButtonsGroup: {
     flexDirection: "column",
     justifyContent: "space-between",
+    right: 5,
     height: 80,
     marginHorizontal: 5,
   },
@@ -726,13 +746,13 @@ const styles = StyleSheet.create({
     bottom: 200,
     left: 100,
     // top: 10,
-    maxWidth: "45%",
+    maxWidth: "40%",
     zIndex: 10,
     padding: 5,
   },
   recognizedText: {
     color: "white",
-    fontSize: 22,
+    fontSize: 20,
     flexWrap: "wrap",
     backgroundColor: "rgba(0, 0, 0, 0.3)",
   },
@@ -740,7 +760,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 100,
     bottom: 80,
-    maxWidth: "45%",
+    maxWidth: "40%",
     zIndex: 10,
     padding: 5,
     alignItems: "flex-end",
@@ -748,7 +768,7 @@ const styles = StyleSheet.create({
   sentenceText: {
     color: "white",
     textAlign: "right",
-    fontSize: 22,
+    fontSize: 20,
     flexWrap: "wrap",
     backgroundColor: "rgba(0, 0, 0, 0.3)",
   },
