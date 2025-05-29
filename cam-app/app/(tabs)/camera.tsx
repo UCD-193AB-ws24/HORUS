@@ -33,7 +33,7 @@ export default function CameraComponent() {
   const [audioRecording, setAudioRecording] = useState<Audio.Recording | null>(
     null
   );
-  const [recognizedText, setRecognizedText] = useState("This is a test of the microphone system text");
+  const [recognizedText, setRecognizedText] = useState("");
   const [transcriptionUri, setTranscriptionUri] = useState<string | null>(null);
   const [sentence, setSentence] = useState<string[]>([]);
   const [videoUri, setVideoUri] = useState<string | null>(null);
@@ -670,6 +670,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    top: 10,
     right: 15,
   },
   recordButtonLandscape: {
