@@ -405,14 +405,14 @@ export default function CameraComponent() {
               style={styles.utilityButton}
               onPress={undoLastWord}
             >
-              <AntDesign name="back" size={30} color="white" />
+              <AntDesign name="back" size={25} color="white" />
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.utilityButton}
               onPress={clearSentence}
             >
-              <AntDesign name="delete" size={30} color="white" />
+              <AntDesign name="delete" size={25} color="white" />
             </TouchableOpacity>
           </View>
           {/*Start recording and stop recording buttons*/}
@@ -603,7 +603,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-evenly",
     alignItems: "flex-end",
     position: "fixed",
-    gap: 46,
+    gap: 65,
     marginTop: 20,
     marginLeft: 10,
   },
@@ -710,13 +710,13 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     justifyContent: "space-between",
     right: 5,
-    height: 80,
+    height: 70,
     marginHorizontal: 5,
   },
   // Style for utility buttons
   utilityButton: {
     width: 70,
-    height: 35,
+    height: 30,
     borderRadius: 40,
     backgroundColor: "rgba(0, 0, 0, 0.3)",
     justifyContent: "center",
