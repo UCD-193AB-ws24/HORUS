@@ -12,7 +12,7 @@ export function SpeechToText({ audioUri, onTranscriptionComplete }) {
             type: "audio/wav"
           });
 
-          const response = await fetch("http://35.236.34.86:8001/process_audio/", {
+          const response = await fetch("https://capstoneserver193.duckdns.org/process_audio/", {
             method: "POST",
             body: formData,
             headers: {

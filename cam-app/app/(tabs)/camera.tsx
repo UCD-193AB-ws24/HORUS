@@ -17,7 +17,7 @@ import { SpeechToText } from "@/components/SpeechToText";
 import SigningTimingBar from "@/components/SigningTimingBar";
 import { useIsFocused } from "@react-navigation/native";
 
-let HOSTNAME = "http://35.236.34.86:8001/";
+let HOSTNAME = "https://capstoneserver193.duckdns.org/";
 import Checkbox from "expo-checkbox";
 import { useAuth } from "@/lib/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
@@ -128,10 +128,10 @@ export default function CameraComponent() {
 
       setIsVideoRecording(true);
       setRecordingPhase("prepare"); // Initialize phase
-
+      await new Promise(resolve => setTimeout(resolve, 1000));
       // Using the recordAsync method with updated options
       const videoRecordPromise = cameraRef.current.recordAsync({
-        maxDuration: 5, // Maximum duration in seconds
+        maxDuration: 2, // Maximum duration in seconds
         codec: "avc1",
       });
 
@@ -143,6 +143,7 @@ export default function CameraComponent() {
       // Always analyze after successful recording completion
       console.log("[DEBUG] Analyzing sign language video...");
       await analyzeSignLanguageVideo(recordedVideo.uri);
+      
     } catch (error) {
       console.error("[ERROR] Failed to start video recording:", error);
     } finally {
@@ -383,7 +384,7 @@ export default function CameraComponent() {
         {/* Signing Timing Bar */}
         <SigningTimingBar
           isRecording={isVideoRecording}
-          totalDuration={5000} // 5 seconds total
+          totalDuration={3000} // 3 seconds total
           preparationTime={1000} // 1 second preparation time
           onRecordingPhaseChange={handleRecordingPhaseChange}
         />
@@ -487,7 +488,7 @@ export default function CameraComponent() {
       {recognizedText ? (
         <View style={styles.textContainer}>
           <Text style={styles.recognizedText}>
-            Recognized: {recognizedText}
+            Recognized Speech: {recognizedText}
           </Text>
         </View>
       ) : null}
@@ -744,10 +745,10 @@ const styles = StyleSheet.create({
   },
   textContainer: {
     position: "absolute",
-    bottom: 200,
+    bottom: 80,
     left: 100,
     // top: 10,
-    maxWidth: "40%",
+    maxWidth: "35%",
     zIndex: 10,
     padding: 5,
   },
@@ -759,9 +760,9 @@ const styles = StyleSheet.create({
   },
   sentenceContainer: {
     position: "absolute",
-    right: 100,
+    left: 469,
     bottom: 80,
-    maxWidth: "40%",
+    maxWidth: "35%",
     zIndex: 10,
     padding: 5,
     alignItems: "flex-end",

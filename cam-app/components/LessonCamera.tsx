@@ -3,7 +3,7 @@ import { View } from "react-native";
 import { CameraView, CameraType, useCameraPermissions } from "expo-camera";
 
 let HOSTNAME =
-  "http://35.236.34.86:8001/";
+  "https://capstoneserver193.duckdns.org/";
 
 type Props = {
   onDetect(letter: string): void;
