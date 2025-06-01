@@ -9,7 +9,7 @@ import {
   Dimensions,
 } from "react-native";
 import { CameraType, CameraView, useCameraPermissions } from "expo-camera";
-import { AntDesign } from "@expo/vector-icons";
+import { AntDesign, Entypo, Ionicons } from "@expo/vector-icons";
 import * as Speech from "expo-speech";
 import { Colors } from "@/constants/Colors";
 import { Audio } from "expo-av";
@@ -17,7 +17,7 @@ import { SpeechToText } from "@/components/SpeechToText";
 import SigningTimingBar from "@/components/SigningTimingBar";
 import { useIsFocused } from "@react-navigation/native";
 
-let HOSTNAME = "https://910b-76-78-246-20.ngrok-free.app/";
+let HOSTNAME = "https://capstoneserver193.duckdns.org/";
 import Checkbox from "expo-checkbox";
 import { useAuth } from "@/lib/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
@@ -128,10 +128,10 @@ export default function CameraComponent() {
 
       setIsVideoRecording(true);
       setRecordingPhase("prepare"); // Initialize phase
-
+      await new Promise(resolve => setTimeout(resolve, 1000));
       // Using the recordAsync method with updated options
       const videoRecordPromise = cameraRef.current.recordAsync({
-        maxDuration: 5, // Maximum duration in seconds
+        maxDuration: 2, // Maximum duration in seconds
         codec: "avc1",
       });
 
@@ -143,6 +143,7 @@ export default function CameraComponent() {
       // Always analyze after successful recording completion
       console.log("[DEBUG] Analyzing sign language video...");
       await analyzeSignLanguageVideo(recordedVideo.uri);
+      
     } catch (error) {
       console.error("[ERROR] Failed to start video recording:", error);
     } finally {
@@ -383,7 +384,7 @@ export default function CameraComponent() {
         {/* Signing Timing Bar */}
         <SigningTimingBar
           isRecording={isVideoRecording}
-          totalDuration={5000} // 5 seconds total
+          totalDuration={3000} // 3 seconds total
           preparationTime={1000} // 1 second preparation time
           onRecordingPhaseChange={handleRecordingPhaseChange}
         />
@@ -405,14 +406,14 @@ export default function CameraComponent() {
               style={styles.utilityButton}
               onPress={undoLastWord}
             >
-              <Text style={styles.utilityButtonText}>Undo</Text>
+              <AntDesign name="back" size={25} color="white" />
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.utilityButton}
               onPress={clearSentence}
             >
-              <Text style={styles.utilityButtonText}>Clear</Text>
+              <AntDesign name="delete" size={25} color="white" />
             </TouchableOpacity>
           </View>
           {/*Start recording and stop recording buttons*/}
@@ -428,15 +429,16 @@ export default function CameraComponent() {
               style={styles.recordButtonLandscape}
               onPress={handleVideoRecordingToggle}
             >
-              <AntDesign name="pausecircleo" size={44} color="white" />
+              {/* <AntDesign name="pausecircleo" size={44} color="white" /> */}
+              <Entypo name="controller-stop" size={44} color="red" />
             </TouchableOpacity>
           )}
           {/*Flip camera button*/}
           <TouchableOpacity
-            style={styles.buttonLandscape}
+            style={styles.flipCameraButton}
             onPress={toggleCameraFacing}
           >
-            <AntDesign name="retweet" size={44} color="white" />
+            <AntDesign name="retweet" size={40} color="white" />
           </TouchableOpacity>
         </View>
 
@@ -447,14 +449,14 @@ export default function CameraComponent() {
               style={styles.buttonLandscape}
               onPress={handleAudioRecordingToggle}
             >
-              <Text style={styles.buttonText}>Record{"\n"}Audio</Text>
+              <Ionicons name="mic" size={40} color="white" />
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
               style={styles.buttonLandscape}
               onPress={handleAudioRecordingToggle}
             >
-              <Text style={styles.buttonText}>Stop</Text>
+              <Ionicons name="mic" size={40} color="red" />
             </TouchableOpacity>
           )}
         </View>
@@ -465,7 +467,7 @@ export default function CameraComponent() {
             style={styles.buttonLandscape}
             onPress={() => setNeedHelp(true)}
           >
-            <Text style={styles.buttonText}>Report Error</Text>
+            <AntDesign name="customerservice" size={40  } color="white" />
           </TouchableOpacity>
         </View>
      
@@ -486,7 +488,7 @@ export default function CameraComponent() {
       {recognizedText ? (
         <View style={styles.textContainer}>
           <Text style={styles.recognizedText}>
-            Recognized: {recognizedText}
+            Recognized Speech: {recognizedText}
           </Text>
         </View>
       ) : null}
@@ -503,7 +505,7 @@ export default function CameraComponent() {
         animationType="slide"
         transparent={true}
         visible={needHelp}
-        supportedOrientations={["portrait", "landscape"]}
+        supportedOrientations={["landscape"]}
       >
         <View style={styles.centeredView}>
           <View style={styles.modalView}>
@@ -539,10 +541,10 @@ export default function CameraComponent() {
           </View>
           <View style={styles.modalButton}>
             <TouchableOpacity style={styles.button} onPress={exitHelpPage}>
-              <Text style={styles.buttonText}>Exit</Text>
+              <AntDesign name="close" size={44} color="white" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.button} onPress={moveErrorVideo}>
-              <Text style={styles.buttonText}>Submit</Text>
+              <AntDesign name="check" size={44} color="white" />
             </TouchableOpacity>
           </View>
         </View>
@@ -599,10 +601,10 @@ const styles = StyleSheet.create({
     display: "flex",
     flexDirection: "column",
     backgroundColor: "transparent",
-    justifyContent: "space-between",
+    justifyContent: "space-evenly",
     alignItems: "flex-end",
     position: "fixed",
-    gap: 38,
+    gap: 65,
     marginTop: 20,
     marginLeft: 10,
   },
@@ -610,7 +612,7 @@ const styles = StyleSheet.create({
     width: 75,
     height: 80,
     position: "absolute",
-    bottom: 10,
+    bottom: 0,
     left: 5,
   },
   helpButton: {
@@ -624,87 +626,111 @@ const styles = StyleSheet.create({
     width: 75,
     height: 80,
     marginHorizontal: 5,
-    backgroundColor: "rgba(40, 40, 40, 0.8)",
     borderRadius: 40,
-    borderWidth: 2,
-    borderColor: Colors.light.tint,
-    shadowColor: Colors.light.tint,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
-    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
     justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   buttonLandscape: {
-    width: 80,
-    height: 80,
-    marginHorizontal: 5,
-    backgroundColor: "rgba(40, 40, 40, 0.8)",
+    width: 60,
+    height: 60,
     borderRadius: 40,
-    borderWidth: 2,
-    borderColor: Colors.light.tint,
-    shadowColor: Colors.light.tint,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
-    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
     justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    left: 10,
+  },
+  flipCameraButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 40,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    top: 10,
+    right: 15,
   },
   recordButtonLandscape: {
-    width: 80,
+    width: 60,
     height: 120,
-    marginHorizontal: 5,
-    backgroundColor: "rgba(40, 40, 40, 0.8)",
+    right: 15,
     borderRadius: 40,
-    borderWidth: 2,
-    borderColor: Colors.light.tint,
-    shadowColor: Colors.light.tint,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
-    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
     justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   permissionsButton: {
     width: 120,
     height: 80,
-    marginHorizontal: 5,
-    backgroundColor: "rgba(40, 40, 40, 0.8)",
     borderRadius: 40,
-    borderWidth: 2,
-    borderColor: Colors.light.tint,
-    shadowColor: Colors.light.tint,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
-    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
     justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   // Container for utility buttons (now a column in the row)
   utilityButtonsGroup: {
     flexDirection: "column",
     justifyContent: "space-between",
-    height: 80,
+    right: 5,
+    height: 70,
     marginHorizontal: 5,
   },
   // Style for utility buttons
   utilityButton: {
     width: 70,
-    height: 35,
-    backgroundColor: "rgba(80, 80, 80, 0.8)",
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "white",
-    alignItems: "center",
+    height: 30,
+    borderRadius: 40,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
     justifyContent: "center",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1,
-    elevation: 2,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   utilityButtonText: {
     fontSize: 14,
@@ -719,28 +745,34 @@ const styles = StyleSheet.create({
   },
   textContainer: {
     position: "absolute",
-    width: "100%",
-    bottom: 50,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-    padding: 10,
+    bottom: 80,
+    left: 100,
+    // top: 10,
+    maxWidth: "35%",
+    zIndex: 10,
+    padding: 5,
   },
   recognizedText: {
     color: "white",
-    textAlign: "center",
-    fontSize: 16,
+    fontSize: 20,
+    flexWrap: "wrap",
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
   },
   sentenceContainer: {
     position: "absolute",
-    width: "100%",
-    bottom: 110,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-    padding: 10,
+    left: 469,
+    bottom: 80,
+    maxWidth: "35%",
+    zIndex: 10,
+    padding: 5,
+    alignItems: "flex-end",
   },
   sentenceText: {
     color: "white",
-    textAlign: "center",
+    textAlign: "right",
     fontSize: 20,
-    fontWeight: "bold",
+    flexWrap: "wrap",
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
   },
   text: {
     fontSize: 18,

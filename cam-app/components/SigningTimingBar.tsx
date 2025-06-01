@@ -127,46 +127,48 @@ const SigningTimingBar: React.FC<SigningTimingBarProps> = ({
       )}
       
       {/* Phase indicator text */}
-      <Text style={[styles.phaseText, {color: textColor, fontSize: 24}]}>
-        {phase === 'prepare' ? 'Get ready...' : 
-         phase === 'record' ? 'SIGN NOW!' : 
-         phase === 'complete' ? 'Processing...' : 'Recording...'}
-      </Text>
-      
-      {/* Background bar */}
-      <View style={styles.track}>
-        {/* Red preparation zone */}
-        <View style={[
-          styles.zone, 
-          styles.prepareZone, 
-          { width: `${(preparationTime/totalDuration) * 100}%` }
-        ]} />
+      <View style={styles.barWrapper}>
+        <Text style={[styles.phaseText, {color: textColor, fontSize: 24}]}>
+          {phase === 'prepare' ? 'Get ready...' : 
+          phase === 'record' ? 'SIGN NOW!' : 
+          phase === 'complete' ? 'Processing...' : 'Recording...'}
+        </Text>
         
-        {/* Green recording zone */}
-        <View style={[
-          styles.zone, 
-          styles.recordZone, 
-          { width: `${((totalDuration-preparationTime)/totalDuration) * 100}%`, left: `${(preparationTime/totalDuration) * 100}%` }
-        ]} />
-        
-        {/* Animated progress indicator */}
-        <Animated.View 
-          style={[
-            styles.progressIndicator,
-            { left: progressWidth }
-          ]} 
-        />
-        
-        {/* Animated progress fill */}
-        <Animated.View 
-          style={[
-            styles.progress, 
-            { 
-              width: progressWidth,
-              backgroundColor: barColor 
-            }
-          ]} 
-        />
+        {/* Background bar */}
+        <View style={styles.track}>
+          {/* Red preparation zone */}
+          <View style={[
+            styles.zone, 
+            styles.prepareZone, 
+            { width: `${(preparationTime/totalDuration) * 100}%` }
+          ]} />
+          
+          {/* Green recording zone */}
+          <View style={[
+            styles.zone, 
+            styles.recordZone, 
+            { width: `${((totalDuration-preparationTime)/totalDuration) * 100}%`, left: `${(preparationTime/totalDuration) * 100}%` }
+          ]} />
+          
+          {/* Animated progress indicator */}
+          <Animated.View 
+            style={[
+              styles.progressIndicator,
+              { left: progressWidth }
+            ]} 
+          />
+          
+          {/* Animated progress fill */}
+          <Animated.View 
+            style={[
+              styles.progress, 
+              { 
+                width: progressWidth,
+                backgroundColor: barColor 
+              }
+            ]} 
+          />
+        </View>
       </View>
     </View>
   );
@@ -175,38 +177,39 @@ const SigningTimingBar: React.FC<SigningTimingBarProps> = ({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 140,
+    top: 0,
     left: 0,
     right: 0,
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingTop: 10,
     zIndex: 10, // Ensure it appears above other elements
+    // backgroundColor: 'rgba(0, 0, 0, 0.2)',
   },
   signNowFlash: {
     position: 'absolute',
-    top: -140, // Extend to top of screen
-    left: -20,
-    right: -20,
-    bottom: -400, // Extend to bottom of screen
+    top: 0, 
+    left: 0,
+    right: 0,
+    height: 60,
     backgroundColor: 'rgba(52, 199, 89, 0.3)', // Semi-transparent green
-    borderWidth: 4,
+    borderBottomWidth: 2,
     borderColor: '#34c759',
     zIndex: 5,
   },
   phaseText: {
     color: 'white',
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: 'bold',
-    marginBottom: 8,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    marginBottom: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
     textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
+    textShadowRadius: 2,
   },
   track: {
-    height: 20,
+    height: 10,
     width: '100%',
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 10,
+    borderRadius: 5,
     overflow: 'hidden',
     flexDirection: 'row',
     borderWidth: 1,
@@ -233,14 +236,18 @@ const styles = StyleSheet.create({
   },
   progressIndicator: {
     position: 'absolute',
-    height: 30,
-    width: 4,
+    height: 16,
+    width: 3,
     backgroundColor: 'white',
-    top: -5,
-    transform: [{ translateX: -2 }], // Center the indicator
-    borderRadius: 2,
+    top: -3,
+    transform: [{ translateX: -1.5 }], // Center the indicator
+    borderRadius: 1.5,
     zIndex: 10, // Ensure it's above other elements
-  }
+  },
+  barWrapper: {
+    width: '33%',
+    alignItems: 'center',
+  },
 });
 
 export default SigningTimingBar;

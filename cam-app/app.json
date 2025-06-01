@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "cam-app",
+    "name": "HORUS",
     "slug": "cam-app",
-    "version": "1.0.0",
+    "version": "1.6.0",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ecs193.signlanguageapp",
-      "buildNumber": "1.0.0",
+      "buildNumber": "1",
       "config": {
         "usesNonExemptEncryption": false
       },
