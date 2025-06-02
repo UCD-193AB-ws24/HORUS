@@ -131,7 +131,7 @@ export default function CameraComponent() {
       await new Promise(resolve => setTimeout(resolve, 1000));
       // Using the recordAsync method with updated options
       const videoRecordPromise = cameraRef.current.recordAsync({
-        maxDuration: 2, // Maximum duration in seconds
+        maxDuration: 1, // Maximum duration in seconds
         codec: "avc1",
       });
 
@@ -384,7 +384,7 @@ export default function CameraComponent() {
         {/* Signing Timing Bar */}
         <SigningTimingBar
           isRecording={isVideoRecording}
-          totalDuration={3000} // 3 seconds total
+          totalDuration={2000} // 3 seconds total
           preparationTime={1000} // 1 second preparation time
           onRecordingPhaseChange={handleRecordingPhaseChange}
         />
@@ -434,12 +434,14 @@ export default function CameraComponent() {
             </TouchableOpacity>
           )}
           {/*Flip camera button*/}
+          {/*
           <TouchableOpacity
             style={styles.flipCameraButton}
             onPress={toggleCameraFacing}
           >
             <AntDesign name="retweet" size={40} color="white" />
           </TouchableOpacity>
+          */}
         </View>
 
         {/*Record audio buttons*/}

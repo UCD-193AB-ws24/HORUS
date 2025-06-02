@@ -10,7 +10,7 @@ type Props = {
   intervalMs?: number;
 };
 
-export default function LessonCamera({ onDetect, intervalMs = 300 }: Props) {
+export default function LessonCamera({ onDetect, intervalMs = 1500 }: Props) {
   const [facing] = useState<CameraType>("front");
   const [permission, requestPermission] = useCameraPermissions();
 
